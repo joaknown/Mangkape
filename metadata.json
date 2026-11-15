@@ -1,0 +1,6 @@
+{
+  "name": "Oak & Ash Roasters",
+  "description": "Specialty neighborhood coffee house featuring an integrated menu, online pickup ordering, live order tracking, loyalty rewards, interactive Google Map, and a store management console.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

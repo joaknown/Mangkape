@@ -1,0 +1,374 @@
+{
+  "entities": {
+    "MenuItem": {
+      "title": "MenuItem",
+      "description": "A beverage, pastry, or whole-bean coffee product served at Mang Kape, managed via the custom CMS.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the menu item.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the drink or item.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "category": {
+          "type": "string",
+          "description": "Menu category.",
+          "enum": [
+            "Perfectly Classic",
+            "Redefined Creation",
+            "Beyond Coffee",
+            "Specialty Options",
+            "Homegrown Signature",
+            "Blended Drinks"
+          ]
+        },
+        "description": {
+          "type": "string",
+          "description": "Concise tasting and preparation description.",
+          "minLength": 1,
+          "maxLength": 260
+        },
+        "tastingNotes": {
+          "type": "string",
+          "description": "Short comma-separated tasting notes.",
+          "minLength": 0,
+          "maxLength": 120
+        },
+        "priceCents": {
+          "type": "integer",
+          "description": "Base price in Philippine centavos (100 centavos = 1 PHP)."
+        },
+        "isSeasonal": {
+          "type": "boolean",
+          "description": "Whether this item is a limited-run seasonal special."
+        },
+        "inStock": {
+          "type": "boolean",
+          "description": "Current availability for online ordering."
+        },
+        "featured": {
+          "type": "boolean",
+          "description": "Whether the item is highlighted on the storefront."
+        },
+        "imageKey": {
+          "type": "string",
+          "description": "Key mapping to verified local editorial photography.",
+          "enum": ["latte", "matcha", "coldbrew", "beans", "hero"]
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "Optional uploaded photo data URL or custom asset URL for the menu item.",
+          "minLength": 0,
+          "maxLength": 250000
+        },
+        "sortOrder": {
+          "type": "integer",
+          "description": "Display ordering index."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "category",
+        "description",
+        "tastingNotes",
+        "priceCents",
+        "isSeasonal",
+        "inStock",
+        "featured",
+        "imageKey",
+        "sortOrder",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated customer profile and loyalty rewards balance.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the user.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Customer display name.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Customer email address.",
+          "minLength": 3,
+          "maxLength": 120
+        },
+        "loyaltyPoints": {
+          "type": "integer",
+          "description": "Current redeemable loyalty points balance."
+        },
+        "lifetimePoints": {
+          "type": "integer",
+          "description": "Total lifetime earned loyalty points."
+        },
+        "favoriteOrderId": {
+          "type": "string",
+          "description": "Optional ID of customer's pinned favorite order.",
+          "minLength": 0,
+          "maxLength": 128
+        },
+        "phone": {
+          "type": "string",
+          "description": "Customer mobile or contact number.",
+          "minLength": 0,
+          "maxLength": 30
+        },
+        "address": {
+          "type": "string",
+          "description": "Customer barangay or street address.",
+          "minLength": 0,
+          "maxLength": 160
+        },
+        "preferredTemp": {
+          "type": "string",
+          "description": "Customer's preferred drink temperature.",
+          "enum": ["Hot", "Iced"]
+        },
+        "preferredSize": {
+          "type": "string",
+          "description": "Customer's preferred cup size.",
+          "enum": ["12 oz", "16 oz", "22 oz"]
+        },
+        "preferredMilk": {
+          "type": "string",
+          "description": "Customer's preferred milk option.",
+          "enum": ["Whole Milk", "Oat Milk", "Almond Milk", "None"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Profile creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last profile update timestamp."
+        }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "email",
+        "loyaltyPoints",
+        "lifetimePoints",
+        "favoriteOrderId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer online pickup order with real-time preparation tracking.",
+      "type": "object",
+      "properties": {
+        "orderNumber": {
+          "type": "string",
+          "description": "Human-readable order code.",
+          "minLength": 4,
+          "maxLength": 20
+        },
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the ordering customer.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "customerName": {
+          "type": "string",
+          "description": "Name for cup label and pickup callout.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "customerEmail": {
+          "type": "string",
+          "format": "email",
+          "description": "Email associated with the order.",
+          "minLength": 3,
+          "maxLength": 120
+        },
+        "pickupType": {
+          "type": "string",
+          "description": "Pickup location mode.",
+          "enum": ["counter", "patio", "curbside"]
+        },
+        "pickupTime": {
+          "type": "string",
+          "description": "Requested pickup window.",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional barista preparation notes.",
+          "minLength": 0,
+          "maxLength": 240
+        },
+        "items": {
+          "type": "array",
+          "description": "Bounded list of ordered items (max 20)."
+        },
+        "subtotalCents": {
+          "type": "integer",
+          "description": "Order subtotal in Philippine centavos."
+        },
+        "discountCents": {
+          "type": "integer",
+          "description": "Loyalty reward discount in Philippine centavos."
+        },
+        "totalCents": {
+          "type": "integer",
+          "description": "Final order total in Philippine centavos."
+        },
+        "pointsEarned": {
+          "type": "integer",
+          "description": "Loyalty points awarded for this order."
+        },
+        "pointsRedeemed": {
+          "type": "integer",
+          "description": "Loyalty points redeemed on this order."
+        },
+        "status": {
+          "type": "string",
+          "description": "Real-time fulfillment status.",
+          "enum": ["received", "preparing", "ready", "completed", "cancelled"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Order submission timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last status update timestamp."
+        }
+      },
+      "required": [
+        "orderNumber",
+        "userId",
+        "customerName",
+        "customerEmail",
+        "pickupType",
+        "pickupTime",
+        "notes",
+        "items",
+        "subtotalCents",
+        "discountCents",
+        "totalCents",
+        "pointsEarned",
+        "pointsRedeemed",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AdminMarker": {
+      "title": "AdminMarker",
+      "description": "Trusted document indicating barista/owner CMS privileges.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 120
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["email", "createdAt"]
+    },
+    "PageStat": {
+      "title": "PageStat",
+      "description": "Aggregate website and section visit counters for admin traffic analytics.",
+      "type": "object",
+      "properties": {
+        "pageId": {
+          "type": "string",
+          "description": "Fixed storefront section or site overview identifier.",
+          "enum": [
+            "site-overview",
+            "home",
+            "holiday-treats",
+            "menu",
+            "story",
+            "orders",
+            "location",
+            "cms"
+          ]
+        },
+        "views": {
+          "type": "integer",
+          "description": "Cumulative session view count."
+        },
+        "uniqueVisitors": {
+          "type": "integer",
+          "description": "Cumulative unique browser visitor count."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the latest recorded visit or reset."
+        }
+      },
+      "required": ["pageId", "views", "uniqueVisitors", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/menuItems/{itemId}": {
+      "schema": { "$ref": "#/entities/MenuItem" },
+      "description": "Publicly readable coffee shop menu catalog managed by CMS admins."
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private customer profile, PII, and loyalty rewards balance."
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Customer pickup orders and live barista fulfillment queue."
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminMarker" },
+      "description": "Read-only RBAC marker docs for authorized shop administrators."
+    },
+    "/pageStats/{pageId}": {
+      "schema": { "$ref": "#/entities/PageStat" },
+      "description": "Website traffic and most-visited page counters readable only by shop administrators."
+    }
+  }
+}
