@@ -45,9 +45,9 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             <p className="font-medium text-[#181615] mb-0.5">Explore</p>
             {[
               { label: 'Holiday Treats', target: 'holiday-treats' },
-              { label: 'Menu & Ordering', target: 'menu' },
+              { label: 'Drinks Menu', target: 'menu' },
               { label: 'Our Story', target: 'story' },
-              { label: 'Orders & Rewards', target: 'orders' },
+              { label: 'Member Account', target: 'orders' },
               { label: 'Location Map', target: 'location' },
             ].map((item) => (
               <a

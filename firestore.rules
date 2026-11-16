@@ -90,7 +90,7 @@ service cloud.firestore {
         (!('address' in data) || (data.address is string && data.address.size() <= 160)) &&
         (!('preferredTemp' in data) || data.preferredTemp in ['Hot', 'Iced']) &&
         (!('preferredSize' in data) || data.preferredSize in ['12 oz', '16 oz', '22 oz']) &&
-        (!('preferredMilk' in data) || data.preferredMilk in ['Whole Milk', 'Oat Milk', 'Almond Milk', 'None']) &&
+        (!('preferredMilk' in data) || data.preferredMilk in ['Whole Milk', 'Oat Milk (Oatside)', 'Soy Milk (Kirkland)', 'Low Fat Milk', 'Oat Milk', 'Almond Milk', 'None']) &&
         data.createdAt is timestamp &&
         data.updatedAt is timestamp;
     }
@@ -138,6 +138,16 @@ service cloud.firestore {
         data.pageId in ['site-overview', 'home', 'holiday-treats', 'menu', 'story', 'orders', 'location', 'cms'] &&
         data.views is int && data.views >= 0 && data.views <= 100000000 &&
         data.uniqueVisitors is int && data.uniqueVisitors >= 0 && data.uniqueVisitors <= 100000000 &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidItemStat(data) {
+      return data.keys().hasAll(['itemId', 'loveCount', 'ratingSum', 'ratingCount', 'updatedAt']) &&
+        data.keys().hasOnly(['itemId', 'loveCount', 'ratingSum', 'ratingCount', 'updatedAt']) &&
+        isValidId(data.itemId) &&
+        data.loveCount is int && data.loveCount >= 0 && data.loveCount <= 100000000 &&
+        data.ratingSum is int && data.ratingSum >= 0 && data.ratingSum <= 500000000 &&
+        data.ratingCount is int && data.ratingCount >= 0 && data.ratingCount <= 100000000 &&
         data.updatedAt is timestamp;
     }
 
@@ -259,6 +269,38 @@ service cloud.firestore {
             incoming().views == existing().views + 1 &&
             incoming().uniqueVisitors >= existing().uniqueVisitors &&
             incoming().uniqueVisitors <= existing().uniqueVisitors + 1
+          )
+        );
+      allow delete: if false;
+    }
+
+    // Public customer love reactions & star ratings per menu item
+    match /itemStats/{itemId} {
+      allow get, list: if true;
+      allow create: if isValidId(itemId) &&
+        isValidItemStat(incoming()) &&
+        incoming().itemId == itemId &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            incoming().loveCount >= 0 && incoming().loveCount <= 1 &&
+            incoming().ratingCount >= 0 && incoming().ratingCount <= 1 &&
+            incoming().ratingSum >= 0 && incoming().ratingSum <= 5
+          )
+        );
+      allow update: if isValidId(itemId) &&
+        isValidItemStat(incoming()) &&
+        incoming().itemId == existing().itemId &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly(['loveCount', 'ratingSum', 'ratingCount', 'updatedAt']) &&
+            incoming().loveCount >= existing().loveCount - 1 &&
+            incoming().loveCount <= existing().loveCount + 1 &&
+            incoming().ratingCount >= existing().ratingCount &&
+            incoming().ratingCount <= existing().ratingCount + 1 &&
+            incoming().ratingSum >= existing().ratingSum &&
+            incoming().ratingSum <= existing().ratingSum + 5
           )
         );
       allow delete: if false;

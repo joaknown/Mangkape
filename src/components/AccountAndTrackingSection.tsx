@@ -1,11 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Award,
-  CheckCircle2,
-  Clock,
+  Heart,
   LogOut,
   Pencil,
-  RotateCcw,
   Star,
   UserCheck,
   UserPlus,
@@ -15,50 +13,8 @@ import { useShop } from '../context/ShopContext';
 import type {
   DrinkSize,
   MilkOption,
-  Order,
-  OrderStatus,
   TempOption,
 } from '../types/coffee';
-
-const TRACK_STEPS: { key: OrderStatus; label: string }[] = [
-  { key: 'received', label: 'Order Received' },
-  { key: 'preparing', label: 'Barista Brewing' },
-  { key: 'ready', label: 'Ready for Pickup' },
-  { key: 'completed', label: 'Completed' },
-];
-
-function getStepIndex(status: OrderStatus): number {
-  const idx = TRACK_STEPS.findIndex((s) => s.key === status);
-  return idx >= 0 ? idx : 0;
-}
-
-function formatOrderTime(ms: number): string {
-  try {
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    }).format(new Date(ms));
-  } catch {
-    return 'Recently';
-  }
-}
-
-function statusDisplayText(status: OrderStatus): string {
-  switch (status) {
-    case 'received':
-      return 'Order Received';
-    case 'preparing':
-      return 'Barista Brewing';
-    case 'ready':
-      return 'Ready for Pickup';
-    case 'completed':
-      return 'Completed';
-    case 'cancelled':
-      return 'Cancelled';
-  }
-}
 
 export const AccountAndTrackingSection: React.FC = () => {
   const {
@@ -66,17 +22,16 @@ export const AccountAndTrackingSection: React.FC = () => {
     authReady,
     isAdmin,
     userProfile,
-    orders,
+    menuItems,
+    itemPopularityById,
+    lovedItemIds,
+    toggleLoveItem,
     authError,
     openAuthModal,
     updateUserProfile,
     signOutUser,
-    reorderFromHistory,
-    cancelOrder,
-    updateFavoriteOrder,
   } = useShop();
 
-  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileName, setProfileName] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
@@ -127,18 +82,10 @@ export const AccountAndTrackingSection: React.FC = () => {
     }
   };
 
-  const activeOrder = useMemo<Order | null>(() => {
-    return (
-      orders.find(
-        (o) => o.status === 'received' || o.status === 'preparing' || o.status === 'ready'
-      ) || null
-    );
-  }, [orders]);
-
-  const favoriteOrder = useMemo<Order | null>(() => {
-    if (!userProfile?.favoriteOrderId) return null;
-    return orders.find((o) => o.id === userProfile.favoriteOrderId) || null;
-  }, [orders, userProfile]);
+  const lovedDrinks = useMemo(() => {
+    const idSet = new Set(lovedItemIds);
+    return menuItems.filter((item) => idSet.has(item.id));
+  }, [menuItems, lovedItemIds]);
 
   const points = userProfile?.loyaltyPoints ?? 0;
   const lifetimePoints = userProfile?.lifetimePoints ?? 0;
@@ -154,36 +101,21 @@ export const AccountAndTrackingSection: React.FC = () => {
       ? 'Gold Bean'
       : "Roaster's Circle";
 
-  const redeemedOrders = useMemo<Order[]>(() => {
-    return orders.filter((o) => o.pointsRedeemed > 0 && o.status !== 'cancelled');
-  }, [orders]);
-
-  const totalSavedCents = useMemo(() => {
-    return redeemedOrders.reduce((sum, o) => sum + o.discountCents, 0);
-  }, [redeemedOrders]);
-
-  const handleCancelOrder = async (orderId: string) => {
-    setCancellingId(orderId);
-    try {
-      await cancelOrder(orderId);
-    } finally {
-      setCancellingId(null);
-    }
-  };
-
   return (
     <section id="orders" className="py-14 lg:py-20 border-b border-[#E6E2D8] bg-[#F3F1EC]/60">
       <div id="rewards" className="max-w-[1200px] mx-auto px-4 sm:px-6">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
             <p className="text-xs font-medium text-[#4E4842] mb-2">
-              Order Tracking, History &amp; Loyalty Rewards
+              Member Profile, Favorite Drinks &amp; Café Rewards
             </p>
             <h2
               className="font-display text-3xl sm:text-4xl font-semibold text-[#181615] tracking-tight"
               style={{ textWrap: 'balance' }}
             >
-              {user ? `Welcome back, ${userProfile?.displayName || user.displayName || 'Friend'}` : 'Your personal espresso bar pass'}
+              {user
+                ? `Welcome back, ${userProfile?.displayName || user.displayName || 'Friend'}`
+                : 'Your personal café member pass'}
             </h2>
           </div>
 
@@ -228,7 +160,7 @@ export const AccountAndTrackingSection: React.FC = () => {
                 Member Login &amp; New Customer Registration
               </h3>
               <p className="text-[15px] leading-relaxed text-[#4E4842] mb-6 max-w-[60ch]">
-                Log in to access your private account, update your profile and preferred cup style, track orders in real time, and earn 50 welcome points on your first visit. Returning customers stay signed in automatically.
+                Log in to access your private account, update your profile and preferred cup style, view your loyalty rewards, and save the Mang Kape drinks you love most. Returning customers stay signed in automatically.
               </p>
               <div className="flex flex-wrap items-center gap-3">
                 <button
@@ -261,7 +193,7 @@ export const AccountAndTrackingSection: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm font-semibold text-[#181615]">50 Welcome Points</p>
-                <p className="text-xs text-[#6B645C]">150 pts unlocks ₱150.00 off any drink</p>
+                <p className="text-xs text-[#6B645C]">150 pts unlocks ₱150.00 complimentary cup credit in-store</p>
               </div>
             </div>
           </div>
@@ -410,9 +342,10 @@ export const AccountAndTrackingSection: React.FC = () => {
                         className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#DFD9CC] rounded-lg focus:outline-2 focus:outline-[#1B3B2B]"
                       >
                         <option value="Whole Milk">Whole Milk</option>
-                        <option value="Oat Milk">Oat Milk</option>
-                        <option value="Almond Milk">Almond Milk</option>
-                        <option value="None">None</option>
+                        <option value="Oat Milk (Oatside)">Oat Milk (Oatside)</option>
+                        <option value="Soy Milk (Kirkland)">Soy Milk (Kirkland)</option>
+                        <option value="Low Fat Milk">Low Fat Milk</option>
+                        <option value="None">No Milk</option>
                       </select>
                     </div>
                   </div>
@@ -459,7 +392,7 @@ export const AccountAndTrackingSection: React.FC = () => {
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-[#6B645C] mb-1">Default Cup Setup</p>
+                    <p className="text-xs text-[#6B645C] mb-1">Usual Cup Notes</p>
                     <p className="text-sm font-medium text-[#1B3B2B]">
                       {`${userProfile?.preferredTemp || 'Iced'} · ${userProfile?.preferredSize || '16 oz'} · ${userProfile?.preferredMilk || 'Whole Milk'}`}
                     </p>
@@ -473,7 +406,6 @@ export const AccountAndTrackingSection: React.FC = () => {
               aria-labelledby="loyalty-dashboard-heading"
               className="bg-white rounded-xl border border-[#E6E2D8] p-6 sm:p-8 space-y-6"
             >
-              {/* Dashboard Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#EFECE4]">
                 <div>
                   <div className="flex items-center gap-2 text-xs text-[#4E4842] mb-1">
@@ -486,32 +418,11 @@ export const AccountAndTrackingSection: React.FC = () => {
                     id="loyalty-dashboard-heading"
                     className="font-display text-2xl font-semibold text-[#181615]"
                   >
-                    Loyalty Dashboard
+                    Loyalty Rewards
                   </h3>
                 </div>
-
-                {favoriteOrder ? (
-                  <button
-                    type="button"
-                    onClick={() => reorderFromHistory(favoriteOrder)}
-                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[42px] text-xs font-semibold text-white bg-[#1B3B2B] hover:bg-[#142D20] rounded-lg transition-colors cursor-pointer whitespace-nowrap self-start sm:self-auto"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Reorder Favorite ({favoriteOrder.orderNumber})</span>
-                  </button>
-                ) : orders.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => reorderFromHistory(orders[0])}
-                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[42px] text-xs font-semibold text-white bg-[#1B3B2B] hover:bg-[#142D20] rounded-lg transition-colors cursor-pointer whitespace-nowrap self-start sm:self-auto"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Reorder Last Order</span>
-                  </button>
-                ) : null}
               </div>
 
-              {/* Balance Metrics & Progress Bar */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
                 <div className="lg:col-span-5 grid grid-cols-2 gap-6">
                   <div>
@@ -524,7 +435,7 @@ export const AccountAndTrackingSection: React.FC = () => {
                     </div>
                     <p className="mt-1 text-xs font-mono-tabular text-[#1B3B2B]">
                       {availablePerksCount}{' '}
-                      {availablePerksCount === 1 ? 'free drink ready' : 'free drinks ready'}
+                      {availablePerksCount === 1 ? 'free drink credit' : 'free drink credits'}
                     </p>
                   </div>
 
@@ -536,17 +447,18 @@ export const AccountAndTrackingSection: React.FC = () => {
                       </span>
                       <span className="text-xs text-[#4E4842]">pts</span>
                     </div>
-                    <p className="mt-1 text-xs font-mono-tabular text-[#6B645C]">
-                      Total saved: {formatCents(totalSavedCents)}
-                    </p>
+                    <p className="mt-1 text-xs text-[#6B645C]">Redeemable at the counter</p>
                   </div>
                 </div>
 
                 <div className="lg:col-span-7 lg:border-l lg:border-[#EFECE4] lg:pl-8">
                   <div className="flex items-center justify-between text-xs font-medium text-[#181615] mb-2">
-                    <span>Progress Toward Next Reward ({formatCents(SHOP_DETAILS.rewardValueCents)} Signature Drink Credit)</span>
+                    <span>
+                      Progress Toward Next Reward ({formatCents(SHOP_DETAILS.rewardValueCents)} Drink Credit)
+                    </span>
                     <span className="font-mono-tabular">
-                      {Math.min(points, SHOP_DETAILS.rewardThresholdPts)} / {SHOP_DETAILS.rewardThresholdPts} pts ({rewardProgressPct}%)
+                      {Math.min(points, SHOP_DETAILS.rewardThresholdPts)} /{' '}
+                      {SHOP_DETAILS.rewardThresholdPts} pts ({rewardProgressPct}%)
                     </span>
                   </div>
                   <div
@@ -563,239 +475,71 @@ export const AccountAndTrackingSection: React.FC = () => {
                     />
                   </div>
                   <p className="mt-2.5 text-xs text-[#4E4842]">
-                    {points >= SHOP_DETAILS.rewardThresholdPts
-                      ? 'Reward unlocked — toggle "Redeem 150 Loyalty Points" inside your Items drawer at checkout.'
-                      : `${SHOP_DETAILS.rewardThresholdPts - points} more points (${formatCents((SHOP_DETAILS.rewardThresholdPts - points) * 500)} in café orders) to unlock your next ${formatCents(SHOP_DETAILS.rewardValueCents)} drink credit.`}
+                    Present your member email at Mang Kape Shop to apply earned café points toward any handcrafted drink.
                   </p>
                 </div>
-              </div>
-
-              {/* History of Redeemed Perks */}
-              <div className="pt-6 border-t border-[#EFECE4]">
-                <div className="flex items-center justify-between gap-4 mb-4">
-                  <h4 className="text-sm font-semibold text-[#181615]">
-                    Redeemed Perks History
-                  </h4>
-                  <span className="text-xs font-mono-tabular text-[#6B645C]">
-                    {redeemedOrders.length}{' '}
-                    {redeemedOrders.length === 1 ? 'perk redeemed' : 'perks redeemed'}
-                  </span>
-                </div>
-
-                {redeemedOrders.length === 0 ? (
-                  <p className="text-sm text-[#6B645C] py-3">
-                    No perks redeemed yet. Once you reach {SHOP_DETAILS.rewardThresholdPts} points, you can apply a {formatCents(SHOP_DETAILS.rewardValueCents)} drink credit directly in your Items drawer and every redemption will appear here.
-                  </p>
-                ) : (
-                  <div className="divide-y divide-[#EFECE4]">
-                    {redeemedOrders.map((order) => (
-                      <div
-                        key={`perk-${order.id}`}
-                        className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-                      >
-                        <div>
-                          <p className="text-sm font-medium text-[#181615]">
-                            Free Signature Drink Credit
-                          </p>
-                          <p className="text-xs text-[#6B645C] mt-0.5">
-                            <span className="font-mono-tabular">{order.orderNumber}</span>
-                            <span className="mx-1.5" aria-hidden="true">·</span>
-                            <span>{formatOrderTime(order.createdAtMs)}</span>
-                            <span className="mx-1.5" aria-hidden="true">·</span>
-                            <span>
-                              {order.items.map((it) => `${it.qty}× ${it.name}`).join(', ')}
-                            </span>
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-4 text-xs font-mono-tabular shrink-0">
-                          <span className="text-[#4E4842]">-{order.pointsRedeemed} pts</span>
-                          <span className="font-semibold text-[#1B3B2B]">
-                            Saved {formatCents(order.discountCents)}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
 
-            {/* Active Live Order Tracker */}
-            {activeOrder && (
-              <div className="bg-white rounded-xl border border-[#1B3B2B]/30 p-6 sm:p-8">
-                <div className="flex flex-wrap items-start justify-between gap-4 pb-6 border-b border-[#EFECE4]">
-                  <div>
-                    <p className="text-xs font-medium text-[#1B3B2B] mb-1">
-                      Live Order Tracker · MANG KAPE SHOP PICKUP
-                    </p>
-                    <h3 className="font-display text-2xl font-semibold text-[#181615] font-mono-tabular">
-                      Order {activeOrder.orderNumber}
-                    </h3>
-                    <p className="text-sm text-[#4E4842] mt-1">
-                      Pickup window: {activeOrder.pickupTime} · Placed {formatOrderTime(activeOrder.createdAtMs)}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-[#1B3B2B]">
-                      {statusDisplayText(activeOrder.status)}
-                    </span>
-                    {activeOrder.status === 'received' && (
-                      <button
-                        type="button"
-                        disabled={cancellingId === activeOrder.id}
-                        onClick={() => handleCancelOrder(activeOrder.id)}
-                        className="px-3.5 py-2 min-h-[38px] text-xs font-medium text-[#991B1B] bg-[#FEF2F2] hover:bg-[#FEE2E2] border border-[#FECACA] rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-                      >
-                        {cancellingId === activeOrder.id ? 'Cancelling...' : 'Cancel Order'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* 4-Step Progress Bar */}
-                <div className="py-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {TRACK_STEPS.map((step, index) => {
-                    const currentIdx = getStepIndex(activeOrder.status);
-                    const isDone = index <= currentIdx;
-                    const isCurrent = index === currentIdx;
-                    return (
-                      <div key={step.key} className="flex flex-col gap-2">
-                        <div
-                          className={`h-1.5 rounded-full transition-colors ${
-                            isDone ? 'bg-[#1B3B2B]' : 'bg-[#E6E2D8]'
-                          }`}
-                        />
-                        <div className="flex items-center gap-1.5">
-                          {isDone ? (
-                            <CheckCircle2 className="w-4 h-4 text-[#1B3B2B] shrink-0" />
-                          ) : (
-                            <Clock className="w-4 h-4 text-[#A39B8F] shrink-0" />
-                          )}
-                          <span
-                            className={`text-xs font-medium ${
-                              isCurrent
-                                ? 'text-[#181615] font-semibold'
-                                : isDone
-                                ? 'text-[#4E4842]'
-                                : 'text-[#8A8278]'
-                            }`}
-                          >
-                            {step.label}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Active Order Receipt Summary */}
-                <div className="pt-4 border-t border-[#EFECE4] flex flex-wrap items-center justify-between gap-4 text-sm">
-                  <div className="text-[#4E4842]">
-                    {activeOrder.items.map((line, i) => (
-                      <span key={`${line.id}-${i}`}>
-                        {i > 0 ? ' · ' : ''}
-                        <span className="font-mono-tabular font-medium text-[#181615]">
-                          {line.qty}×
-                        </span>{' '}
-                        {line.name} ({line.size}, {line.temperature})
-                      </span>
-                    ))}
-                  </div>
-                  <div className="font-mono-tabular font-semibold text-[#181615]">
-                    Total: {formatCents(activeOrder.totalCents)}
-                    {activeOrder.pointsEarned > 0 && (
-                      <span className="ml-2 text-xs font-normal text-[#1B3B2B]">
-                        (+{activeOrder.pointsEarned} pts)
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Account Order History */}
+            {/* Loved Drinks Favorites List */}
             <div className="bg-white rounded-xl border border-[#E6E2D8] overflow-hidden">
               <div className="px-6 py-4 border-b border-[#E6E2D8] flex items-center justify-between">
-                <h3 className="text-base font-semibold text-[#181615]">Account Order History</h3>
+                <h3 className="text-base font-semibold text-[#181615]">Drinks You Love</h3>
                 <span className="text-xs font-mono-tabular text-[#6B645C]">
-                  {orders.length} {orders.length === 1 ? 'order' : 'orders'}
+                  {lovedDrinks.length} {lovedDrinks.length === 1 ? 'drink' : 'drinks'}
                 </span>
               </div>
 
-              {orders.length === 0 ? (
+              {lovedDrinks.length === 0 ? (
                 <div className="p-8 text-center">
-                  <p className="text-sm text-[#4E4842]">
-                    No past orders yet. Add a seasonal pour from the menu above to place your first pickup order.
+                  <p className="text-sm text-[#4E4842] mb-3">
+                    Tap the Love icon on any drink in the menu above to save your go-to cups here.
                   </p>
+                  <a
+                    href="#menu"
+                    className="inline-flex items-center px-4 py-2 text-xs font-semibold text-white bg-[#1B3B2B] hover:bg-[#142D20] rounded-lg transition-colors"
+                  >
+                    Browse Drinks Menu
+                  </a>
                 </div>
               ) : (
                 <div className="divide-y divide-[#EFECE4]">
-                  {orders.map((order) => {
-                    const isPinned = userProfile?.favoriteOrderId === order.id;
+                  {lovedDrinks.map((drink) => {
+                    const pop = itemPopularityById[drink.id];
                     return (
                       <div
-                        key={order.id}
-                        className="px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
+                        key={drink.id}
+                        className="px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                       >
-                        <div className="space-y-1">
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-[#6B645C]">
-                            <span className="font-mono-tabular font-semibold text-[#181615]">
-                              {order.orderNumber}
-                            </span>
+                        <div>
+                          <div className="flex items-center gap-2 text-xs text-[#6B645C]">
+                            <span>{drink.category}</span>
                             <span aria-hidden="true">·</span>
-                            <span>{formatOrderTime(order.createdAtMs)}</span>
-                            <span aria-hidden="true">·</span>
-                            <span
-                              className={`font-medium ${
-                                order.status === 'cancelled'
-                                  ? 'text-[#991B1B]'
-                                  : order.status === 'ready' || order.status === 'completed'
-                                  ? 'text-[#1B3B2B]'
-                                  : 'text-[#181615]'
-                              }`}
-                            >
-                              {statusDisplayText(order.status)}
+                            <span className="inline-flex items-center gap-1 font-mono-tabular text-[#181615]">
+                              <Star className="w-3.5 h-3.5 fill-[#C88A1E] text-[#C88A1E]" />
+                              {pop ? pop.ratingAvg.toFixed(1) : '4.9'}
                             </span>
+                            {pop?.isMostLoved && (
+                              <>
+                                <span aria-hidden="true">·</span>
+                                <span className="font-semibold text-[#9A6314]">Most Loved</span>
+                              </>
+                            )}
                           </div>
-                          <p className="text-sm text-[#181615]">
-                            {order.items
-                              .map((it) => `${it.qty}× ${it.name}`)
-                              .join(', ')}
-                          </p>
-                          <p className="text-xs text-[#6B645C] font-mono-tabular">
-                            Mang Kape Shop pickup · +{order.pointsEarned} pts earned
-                            {order.pointsRedeemed > 0 ? ` · -${order.pointsRedeemed} pts redeemed` : ''}
-                          </p>
+                          <p className="text-sm font-semibold text-[#181615] mt-0.5">{drink.name}</p>
                         </div>
 
                         <div className="flex items-center gap-3 shrink-0">
-                          <span className="text-sm font-semibold font-mono-tabular text-[#181615] mr-1">
-                            {formatCents(order.totalCents)}
+                          <span className="text-sm font-semibold font-mono-tabular text-[#181615]">
+                            {formatCents(drink.priceCents)}
                           </span>
-
                           <button
                             type="button"
-                            onClick={() => updateFavoriteOrder(isPinned ? '' : order.id)}
-                            aria-label={isPinned ? 'Unpin favorite order' : 'Pin as favorite order'}
-                            className={`inline-flex items-center gap-1 px-2.5 py-2 min-h-[38px] text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
-                              isPinned
-                                ? 'bg-[#1B3B2B]/10 border-[#1B3B2B]/30 text-[#1B3B2B]'
-                                : 'bg-[#FAF9F6] border-[#DFD9CC] text-[#4E4842] hover:text-[#181615]'
-                            }`}
+                            onClick={() => toggleLoveItem(drink)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[36px] text-xs font-semibold text-[#991B1B] bg-[#FDF2F2] hover:bg-[#FEE2E2] border border-[#FECACA] rounded-lg transition-colors cursor-pointer"
                           >
-                            <Star className={`w-3.5 h-3.5 ${isPinned ? 'fill-[#1B3B2B]' : ''}`} />
-                            <span>{isPinned ? 'Pinned' : 'Pin'}</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => reorderFromHistory(order)}
-                            className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[38px] text-xs font-medium text-[#181615] bg-[#F3F1EC] hover:bg-[#E8E4DA] border border-[#DFD9CC] rounded-lg transition-colors cursor-pointer"
-                          >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                            <span>Reorder</span>
+                            <Heart className="w-3.5 h-3.5 fill-[#B91C1C] text-[#B91C1C]" />
+                            <span>Loved</span>
                           </button>
                         </div>
                       </div>

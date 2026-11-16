@@ -43,7 +43,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   onClick={onExploreMenu}
                   className="inline-flex items-center gap-2 px-6 py-3 min-h-[44px] text-sm font-semibold text-white bg-[#1B3B2B] hover:bg-[#142D20] rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1B3B2B]"
                 >
-                  <span>Order Ahead</span>
+                  <span>View Menu</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
 
@@ -77,7 +77,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                     onClick={onOpenAccount}
                     className="text-sm font-medium text-[#1B3B2B] underline underline-offset-4 hover:text-[#142D20] cursor-pointer whitespace-nowrap shrink-0"
                   >
-                    Track Orders &amp; Rewards
+                    My Account &amp; Rewards
                   </button>
                 </div>
               ) : (
@@ -123,9 +123,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             <p className="text-sm font-medium text-[#181615]">{SHOP_DETAILS.addressLine}</p>
           </div>
           <div>
-            <p className="text-xs text-[#4E4842] mb-1">Online Pickup</p>
+            <p className="text-xs text-[#4E4842] mb-1">In-Store Service</p>
             <p className="text-sm font-medium text-[#181615]">
-              Mang Kape Shop · ~10 min
+              Mang Kape Shop · Dine-In &amp; Counter
             </p>
           </div>
           <div>

@@ -6,7 +6,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AccountAndTrackingSection } from './components/AccountAndTrackingSection';
 import { AuthModal } from './components/AuthModal';
-import { BagDrawer } from './components/BagDrawer';
 import { CmsSection } from './components/CmsSection';
 import { Footer } from './components/Footer';
 import { HeroSection } from './components/HeroSection';
@@ -132,7 +131,6 @@ const StorefrontContent: React.FC = () => {
       </main>
 
       <Footer onNavigate={navigateTo} />
-      <BagDrawer onOrderPlaced={() => navigateTo('orders')} />
       <AuthModal onAuthSuccess={(asAdmin) => navigateTo(asAdmin ? 'cms' : 'orders')} />
       <ToastBanner />
     </div>

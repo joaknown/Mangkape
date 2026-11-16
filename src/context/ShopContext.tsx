@@ -13,6 +13,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocFromServer,
   increment,
   onSnapshot,
   orderBy,
@@ -21,13 +22,12 @@ import {
   setDoc,
   Timestamp,
   updateDoc,
-  where,
   writeBatch,
 } from 'firebase/firestore';
 import {
+  BASE_ITEM_POPULARITY,
   DEFAULT_MENU_ITEMS,
   MENU_CATEGORIES,
-  SHOP_DETAILS,
   TRACKED_PAGES,
 } from '../data/catalog';
 import {
@@ -39,32 +39,22 @@ import {
   OperationType,
 } from '../lib/firebase';
 import type {
-  CartItem,
   DrinkSize,
+  ItemStat,
   MenuItem,
+  MenuItemPopularity,
   MilkOption,
-  Order,
-  OrderLineItem,
-  OrderStatus,
   PageStat,
   PageStatId,
-  PickupType,
   TempOption,
   TrackedPageId,
   UserProfile,
 } from '../types/coffee';
 
-const CART_STORAGE_KEY = 'mang_kape_bag_v1';
 const SESSION_PAGES_KEY = 'mang_kape_session_pages_v1';
 const UNIQUE_PAGES_KEY = 'mang_kape_unique_pages_v1';
-
-interface PlaceOrderInput {
-  customerName: string;
-  pickupType: PickupType;
-  pickupTime: string;
-  notes: string;
-  redeemReward: boolean;
-}
+const LOVED_ITEMS_KEY = 'mang_kape_loved_items_v1';
+const RATED_ITEMS_KEY = 'mang_kape_rated_items_v1';
 
 export interface MemberRegistrationInput {
   displayName: string;
@@ -102,11 +92,11 @@ interface ShopContextValue {
   isMenuSeeded: boolean;
   hasLegacyMenu: boolean;
   menuLoading: boolean;
-  cart: CartItem[];
-  bagOpen: boolean;
-  setBagOpen: (open: boolean) => void;
-  orders: Order[];
-  adminOrders: Order[];
+  itemPopularityById: Record<string, MenuItemPopularity>;
+  lovedItemIds: string[];
+  ratedItems: Record<string, number>;
+  toggleLoveItem: (item: MenuItem) => Promise<void>;
+  rateMenuItem: (item: MenuItem, stars: number) => Promise<void>;
   pageStats: PageStat[];
   pageStatsLoading: boolean;
   toastMessage: string | null;
@@ -119,22 +109,9 @@ interface ShopContextValue {
   ) => Promise<AuthResult>;
   updateUserProfile: (updates: UserProfileUpdateInput) => Promise<void>;
   signOutUser: () => Promise<void>;
-  addToCart: (item: Omit<CartItem, 'cartKey'>) => void;
-  updateCartQty: (cartKey: string, delta: number) => void;
-  updateCartItemOptions: (
-    cartKey: string,
-    updates: { temperature?: TempOption; size?: DrinkSize }
-  ) => void;
-  removeFromCart: (cartKey: string) => void;
-  clearCart: () => void;
-  reorderFromHistory: (order: Order) => void;
-  placeOrder: (input: PlaceOrderInput) => Promise<Order | null>;
-  cancelOrder: (orderId: string) => Promise<void>;
-  advanceOrderStatus: (orderId: string, nextStatus: OrderStatus) => Promise<void>;
   seedDefaultMenu: () => Promise<void>;
   saveMenuItem: (item: MenuItem, isNew: boolean) => Promise<void>;
   deleteMenuItem: (itemId: string) => Promise<void>;
-  updateFavoriteOrder: (orderId: string) => Promise<void>;
   trackPageView: (pageId: TrackedPageId) => void;
   resetPageStats: () => Promise<void>;
 }
@@ -162,22 +139,34 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [firestoreMenu, setFirestoreMenu] = useState<MenuItem[] | null>(null);
   const [menuLoading, setMenuLoading] = useState(true);
+  const [itemStats, setItemStats] = useState<Record<string, ItemStat>>({});
 
-  const [cart, setCart] = useState<CartItem[]>(() => {
+  const [lovedItemIds, setLovedItemIds] = useState<string[]>(() => {
     try {
-      const saved = localStorage.getItem(CART_STORAGE_KEY);
+      const saved = localStorage.getItem(LOVED_ITEMS_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) return parsed.filter((x) => typeof x === 'string');
       }
     } catch {
       // Ignore storage errors
     }
     return [];
   });
-  const [bagOpen, setBagOpen] = useState(false);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [adminOrders, setAdminOrders] = useState<Order[]>([]);
+
+  const [ratedItems, setRatedItems] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem(RATED_ITEMS_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') return parsed as Record<string, number>;
+      }
+    } catch {
+      // Ignore storage errors
+    }
+    return {};
+  });
+
   const [pageStats, setPageStats] = useState<PageStat[]>([]);
   const [pageStatsLoading, setPageStatsLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -209,11 +198,28 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     try {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+      localStorage.setItem(LOVED_ITEMS_KEY, JSON.stringify(lovedItemIds));
     } catch {
       // Ignore storage errors
     }
-  }, [cart]);
+  }, [lovedItemIds]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(RATED_ITEMS_KEY, JSON.stringify(ratedItems));
+    } catch {
+      // Ignore storage errors
+    }
+  }, [ratedItems]);
+
+  // Validate connection to Firestore on boot
+  useEffect(() => {
+    getDocFromServer(doc(db, 'test', 'connection')).catch((error) => {
+      if (error instanceof Error && error.message.includes('the client is offline')) {
+        console.error('Please check your Firebase configuration.');
+      }
+    });
+  }, []);
 
   // Listen to Firebase Auth state
   useEffect(() => {
@@ -223,8 +229,6 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!nextUser) {
         setHasAdminDoc(false);
         setUserProfile(null);
-        setOrders([]);
-        setAdminOrders([]);
       }
     });
     return () => unsub();
@@ -272,6 +276,33 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsub();
   }, []);
 
+  // Public item love & star rating stats listener
+  useEffect(() => {
+    const statsRef = collection(db, 'itemStats');
+    const unsub = onSnapshot(
+      statsRef,
+      (snap) => {
+        const map: Record<string, ItemStat> = {};
+        snap.docs.forEach((d) => {
+          const data = d.data();
+          const itemId = String(data.itemId || d.id);
+          map[itemId] = {
+            itemId,
+            loveCount: Number(data.loveCount ?? 0),
+            ratingSum: Number(data.ratingSum ?? 0),
+            ratingCount: Number(data.ratingCount ?? 0),
+            updatedAtMs: timestampToMs(data.updatedAt),
+          };
+        });
+        setItemStats(map);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'itemStats');
+      }
+    );
+    return () => unsub();
+  }, []);
+
   const hasLegacyMenu = Boolean(
     firestoreMenu &&
       firestoreMenu.length > 0 &&
@@ -290,7 +321,60 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return DEFAULT_MENU_ITEMS;
   }, [firestoreMenu, hasLegacyOnlyMenu]);
 
-  // Authenticated User Profile + Admin check + Customer Orders listeners
+  // Compute star rating, love counts, order frequency, and Most Loved rankings for every item
+  const itemPopularityById = useMemo<Record<string, MenuItemPopularity>>(() => {
+    const rawEntries = menuItems.map((item) => {
+      const base = BASE_ITEM_POPULARITY[item.id] ?? {
+        loves: item.featured ? 112 : 68,
+        orders: item.featured ? 210 : 124,
+        ratingAvg: item.featured ? 4.9 : 4.8,
+        ratingCount: item.featured ? 45 : 22,
+      };
+      const live = itemStats[item.id];
+      const liveLoves = Math.max(0, live?.loveCount ?? 0);
+      const liveRatingCount = Math.max(0, live?.ratingCount ?? 0);
+      const liveRatingSum = Math.max(0, live?.ratingSum ?? 0);
+
+      const baseRatingSum = base.ratingAvg * base.ratingCount;
+      const totalRatingCount = base.ratingCount + liveRatingCount;
+      const rawAvg =
+        totalRatingCount > 0 ? (baseRatingSum + liveRatingSum) / totalRatingCount : 4.8;
+      const ratingAvg = Math.min(5, Math.max(1, Math.round(rawAvg * 10) / 10));
+
+      const loveCount = base.loves + liveLoves;
+      const orderCount = base.orders;
+      const totalInteractions = loveCount + orderCount;
+
+      return {
+        id: item.id,
+        loveCount,
+        orderCount,
+        totalInteractions,
+        ratingAvg,
+        ratingCount: totalRatingCount,
+      };
+    });
+
+    const sortedScores = [...rawEntries]
+      .sort((a, b) => b.totalInteractions - a.totalInteractions)
+      .map((entry) => entry.id);
+    const mostLovedSet = new Set(sortedScores.slice(0, 9));
+
+    const result: Record<string, MenuItemPopularity> = {};
+    rawEntries.forEach((entry) => {
+      result[entry.id] = {
+        loveCount: entry.loveCount,
+        orderCount: entry.orderCount,
+        totalInteractions: entry.totalInteractions,
+        ratingAvg: entry.ratingAvg,
+        ratingCount: entry.ratingCount,
+        isMostLoved: mostLovedSet.has(entry.id),
+      };
+    });
+    return result;
+  }, [menuItems, itemStats]);
+
+  // Authenticated User Profile + Admin check listeners
   useEffect(() => {
     if (!authReady || !user) return;
 
@@ -298,7 +382,6 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const userDocRef = doc(db, 'users', user.uid);
     const adminDocRef = doc(db, 'admins', user.uid);
 
-    // Check optional /admins/{uid} document
     getDoc(adminDocRef)
       .then((snap) => {
         if (!cancelled) setHasAdminDoc(snap.exists());
@@ -307,7 +390,6 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!cancelled) setHasAdminDoc(false);
       });
 
-    // Ensure user profile exists if verified (unless registerMemberWithGoogle is handling creation)
     const ensureProfile = async () => {
       if (registrationInProgressRef.current) return;
       try {
@@ -360,11 +442,14 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 : '16 oz',
             preferredMilk:
               data.preferredMilk === 'Whole Milk' ||
-              data.preferredMilk === 'Oat Milk' ||
-              data.preferredMilk === 'Almond Milk' ||
+              data.preferredMilk === 'Oat Milk (Oatside)' ||
+              data.preferredMilk === 'Soy Milk (Kirkland)' ||
+              data.preferredMilk === 'Low Fat Milk' ||
               data.preferredMilk === 'None'
                 ? data.preferredMilk
-                : 'Whole Milk',
+                : data.preferredMilk === 'Oat Milk'
+                  ? 'Oat Milk (Oatside)'
+                  : 'Whole Milk',
             loyaltyPoints: Number(data.loyaltyPoints ?? 0),
             lifetimePoints: Number(data.lifetimePoints ?? 0),
             favoriteOrderId: String(data.favoriteOrderId || ''),
@@ -376,92 +461,19 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    const ordersQuery = query(
-      collection(db, 'orders'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
-    );
-
-    const unsubOrders = onSnapshot(
-      ordersQuery,
-      (snap) => {
-        const list: Order[] = snap.docs.map((d) => {
-          const data = d.data();
-          return {
-            id: d.id,
-            orderNumber: String(data.orderNumber || ''),
-            userId: String(data.userId || ''),
-            customerName: String(data.customerName || ''),
-            customerEmail: String(data.customerEmail || ''),
-            pickupType: data.pickupType || 'counter',
-            pickupTime: String(data.pickupTime || 'ASAP'),
-            notes: String(data.notes || ''),
-            items: Array.isArray(data.items) ? data.items : [],
-            subtotalCents: Number(data.subtotalCents || 0),
-            discountCents: Number(data.discountCents || 0),
-            totalCents: Number(data.totalCents || 0),
-            pointsEarned: Number(data.pointsEarned || 0),
-            pointsRedeemed: Number(data.pointsRedeemed || 0),
-            status: data.status || 'received',
-            createdAtMs: timestampToMs(data.createdAt),
-            updatedAtMs: timestampToMs(data.updatedAt),
-          };
-        });
-        setOrders(list);
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'orders');
-      }
-    );
-
     return () => {
       cancelled = true;
       unsubProfile();
-      unsubOrders();
     };
   }, [authReady, user]);
 
-  // Admin All-Orders Barista Queue & Site Analytics listeners
+  // Admin Site Analytics listener
   useEffect(() => {
     if (!authReady || !user || !isAdmin) {
-      setAdminOrders([]);
       setPageStats([]);
       setPageStatsLoading(false);
       return;
     }
-
-    const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
-    const unsubOrders = onSnapshot(
-      q,
-      (snap) => {
-        const list: Order[] = snap.docs.map((d) => {
-          const data = d.data();
-          return {
-            id: d.id,
-            orderNumber: String(data.orderNumber || ''),
-            userId: String(data.userId || ''),
-            customerName: String(data.customerName || ''),
-            customerEmail: String(data.customerEmail || ''),
-            pickupType: data.pickupType || 'counter',
-            pickupTime: String(data.pickupTime || 'ASAP'),
-            notes: String(data.notes || ''),
-            items: Array.isArray(data.items) ? data.items : [],
-            subtotalCents: Number(data.subtotalCents || 0),
-            discountCents: Number(data.discountCents || 0),
-            totalCents: Number(data.totalCents || 0),
-            pointsEarned: Number(data.pointsEarned || 0),
-            pointsRedeemed: Number(data.pointsRedeemed || 0),
-            status: data.status || 'received',
-            createdAtMs: timestampToMs(data.createdAt),
-            updatedAtMs: timestampToMs(data.updatedAt),
-          };
-        });
-        setAdminOrders(list);
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'orders');
-      }
-    );
 
     setPageStatsLoading(true);
     const statsRef = collection(db, 'pageStats');
@@ -487,10 +499,96 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     return () => {
-      unsubOrders();
       unsubStats();
     };
   }, [authReady, user, isAdmin]);
+
+  const toggleLoveItem = useCallback(
+    async (item: MenuItem) => {
+      const cleanId = sanitizeId(item.id);
+      const currentlyLoved = lovedItemIds.includes(cleanId);
+      const currentStat = itemStats[cleanId];
+      const currentLiveLoves = currentStat?.loveCount ?? 0;
+
+      setLovedItemIds((prev) =>
+        currentlyLoved ? prev.filter((id) => id !== cleanId) : [...prev, cleanId]
+      );
+
+      if (currentlyLoved && currentLiveLoves <= 0) {
+        showToast(`Removed ${item.name} from your loved drinks`);
+        return;
+      }
+
+      const statRef = doc(db, 'itemStats', cleanId);
+      try {
+        const snap = await getDoc(statRef);
+        if (!snap.exists()) {
+          if (!currentlyLoved) {
+            await setDoc(statRef, {
+              itemId: cleanId,
+              loveCount: 1,
+              ratingSum: 0,
+              ratingCount: 0,
+              updatedAt: serverTimestamp(),
+            });
+          }
+        } else {
+          const existingLoves = Number(snap.data().loveCount ?? 0);
+          if (!currentlyLoved || existingLoves > 0) {
+            await updateDoc(statRef, {
+              loveCount: increment(currentlyLoved ? -1 : 1),
+              updatedAt: serverTimestamp(),
+            });
+          }
+        }
+        showToast(
+          currentlyLoved
+            ? `Removed love for ${item.name}`
+            : `Loved ${item.name} · Added to customer favorites`
+        );
+      } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, `itemStats/${cleanId}`);
+      }
+    },
+    [lovedItemIds, itemStats, showToast]
+  );
+
+  const rateMenuItem = useCallback(
+    async (item: MenuItem, stars: number) => {
+      const clampedStars = Math.min(5, Math.max(1, Math.round(stars)));
+      const cleanId = sanitizeId(item.id);
+      if (ratedItems[cleanId]) {
+        showToast(`You already rated ${item.name} (${ratedItems[cleanId]}★)`);
+        return;
+      }
+
+      setRatedItems((prev) => ({ ...prev, [cleanId]: clampedStars }));
+      const statRef = doc(db, 'itemStats', cleanId);
+
+      try {
+        const snap = await getDoc(statRef);
+        if (!snap.exists()) {
+          await setDoc(statRef, {
+            itemId: cleanId,
+            loveCount: 0,
+            ratingSum: clampedStars,
+            ratingCount: 1,
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          await updateDoc(statRef, {
+            ratingSum: increment(clampedStars),
+            ratingCount: increment(1),
+            updatedAt: serverTimestamp(),
+          });
+        }
+        showToast(`Rated ${item.name} ${clampedStars}★ — Thank you!`);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, `itemStats/${cleanId}`);
+      }
+    },
+    [ratedItems, showToast]
+  );
 
   const recordStatHit = useCallback((statId: PageStatId) => {
     if (recordedSessionRef.current.has(statId)) return;
@@ -544,12 +642,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         handleFirestoreError(error, OperationType.WRITE, `pageStats/${statId}`);
       } catch {
-        // Already logged via handleFirestoreError; prevent unhandled rejection in background analytics
+        // Prevent unhandled rejection in background analytics
       }
     });
   }, []);
 
-  // Record overall site visit & landing hero view once per session
   useEffect(() => {
     recordStatHit('site-overview');
     recordStatHit('home');
@@ -743,244 +840,6 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [showToast]);
 
-  const addToCart = useCallback(
-    (item: Omit<CartItem, 'cartKey'>) => {
-      const cartKey = `${item.menuItemId}_${item.size}_${item.milk}_${item.temperature}_${item.extraShot ? 'x' : 'std'}`;
-      setCart((prev) => {
-        const existingIdx = prev.findIndex((c) => c.cartKey === cartKey);
-        if (existingIdx >= 0) {
-          const updated = [...prev];
-          const nextQty = Math.min(20, updated[existingIdx].qty + item.qty);
-          updated[existingIdx] = { ...updated[existingIdx], qty: nextQty };
-          return updated;
-        }
-        if (prev.length >= 20) return prev;
-        return [...prev, { ...item, cartKey }];
-      });
-      showToast(`Added ${item.name} (${item.temperature}, ${item.size}) to items`);
-    },
-    [showToast]
-  );
-
-  const updateCartQty = useCallback((cartKey: string, delta: number) => {
-    setCart((prev) =>
-      prev
-        .map((c) => (c.cartKey === cartKey ? { ...c, qty: Math.min(20, c.qty + delta) } : c))
-        .filter((c) => c.qty > 0)
-    );
-  }, []);
-
-  const updateCartItemOptions = useCallback(
-    (cartKey: string, updates: { temperature?: TempOption; size?: DrinkSize }) => {
-      setCart((prev) => {
-        const targetIdx = prev.findIndex((c) => c.cartKey === cartKey);
-        if (targetIdx < 0) return prev;
-        const target = prev[targetIdx];
-        const nextTemp = updates.temperature ?? target.temperature;
-        const nextSize = updates.size ?? target.size;
-        const oldUpcharge =
-          target.size === '22 oz' ? 4500 : target.size === '16 oz' ? 2500 : 0;
-        const newUpcharge =
-          nextSize === '22 oz' ? 4500 : nextSize === '16 oz' ? 2500 : 0;
-        const nextUnitPriceCents = Math.max(
-          50,
-          target.unitPriceCents - oldUpcharge + newUpcharge
-        );
-        const nextKey = `${target.menuItemId}_${nextSize}_${target.milk}_${nextTemp}_${
-          target.extraShot ? 'x' : 'std'
-        }`;
-
-        const updatedItem: CartItem = {
-          ...target,
-          cartKey: nextKey,
-          temperature: nextTemp,
-          size: nextSize,
-          unitPriceCents: nextUnitPriceCents,
-        };
-
-        const duplicateIdx = prev.findIndex(
-          (c, idx) => idx !== targetIdx && c.cartKey === nextKey
-        );
-        if (duplicateIdx >= 0) {
-          const merged = [...prev];
-          merged[duplicateIdx] = {
-            ...merged[duplicateIdx],
-            qty: Math.min(20, merged[duplicateIdx].qty + target.qty),
-          };
-          return merged.filter((_, idx) => idx !== targetIdx);
-        }
-
-        const nextList = [...prev];
-        nextList[targetIdx] = updatedItem;
-        return nextList;
-      });
-    },
-    []
-  );
-
-  const removeFromCart = useCallback((cartKey: string) => {
-    setCart((prev) => prev.filter((c) => c.cartKey !== cartKey));
-  }, []);
-
-  const clearCart = useCallback(() => setCart([]), []);
-
-  const reorderFromHistory = useCallback(
-    (order: Order) => {
-      const nextItems: CartItem[] = order.items.slice(0, 20).map((line) => ({
-        cartKey: `${line.id}_${line.size}_${line.milk}_${line.temperature}_${line.extraShot ? 'x' : 'std'}`,
-        menuItemId: line.id,
-        name: line.name,
-        category: 'Perfectly Classic',
-        imageKey: 'latte',
-        size: line.size,
-        milk: line.milk,
-        temperature: line.temperature,
-        extraShot: line.extraShot,
-        qty: line.qty,
-        unitPriceCents: line.unitPriceCents,
-      }));
-      setCart(nextItems);
-      setBagOpen(true);
-      showToast(`Loaded items from ${order.orderNumber}`);
-    },
-    [showToast]
-  );
-
-  const placeOrder = useCallback(
-    async (input: PlaceOrderInput): Promise<Order | null> => {
-      if (!user || !user.emailVerified) {
-        throw new Error('Please sign in with a verified Google account to place an order.');
-      }
-      if (cart.length === 0) {
-        throw new Error('Your items list is empty.');
-      }
-
-      const subtotalCents = cart.reduce((sum, item) => sum + item.unitPriceCents * item.qty, 0);
-      const currentPoints = userProfile?.loyaltyPoints ?? 0;
-      const canRedeem = input.redeemReward && currentPoints >= SHOP_DETAILS.rewardThresholdPts;
-      const pointsRedeemed = canRedeem ? SHOP_DETAILS.rewardThresholdPts : 0;
-      const discountCents = canRedeem
-        ? Math.min(SHOP_DETAILS.rewardValueCents, subtotalCents)
-        : 0;
-      const totalCents = Math.max(0, subtotalCents - discountCents);
-      const pointsEarned = Math.min(1000, Math.max(0, Math.round(totalCents / 500)));
-
-      const orderId = sanitizeId(`ord-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`);
-      const orderNumber = `MK-${String(Math.floor(1000 + Math.random() * 9000))}`;
-
-      const lineItems: OrderLineItem[] = cart.slice(0, 20).map((c) => ({
-        id: sanitizeId(c.menuItemId),
-        name: c.name.slice(0, 80),
-        size: c.size,
-        milk: c.milk,
-        temperature: c.temperature,
-        extraShot: c.extraShot,
-        qty: Math.min(20, Math.max(1, c.qty)),
-        unitPriceCents: Math.min(500000, Math.max(50, c.unitPriceCents)),
-      }));
-
-      const customerName = (input.customerName.trim() || user.displayName || 'Guest').slice(0, 80);
-      const customerEmail = (user.email || 'guest@mangkape.com').slice(0, 120);
-      const notes = input.notes.trim().slice(0, 240);
-      const pickupTime = input.pickupTime.slice(0, 40);
-
-      const batch = writeBatch(db);
-      const orderRef = doc(db, 'orders', orderId);
-      const userRef = doc(db, 'users', user.uid);
-
-      batch.set(orderRef, {
-        orderNumber,
-        userId: user.uid,
-        customerName,
-        customerEmail,
-        pickupType: input.pickupType,
-        pickupTime,
-        notes,
-        items: lineItems,
-        subtotalCents,
-        discountCents,
-        totalCents,
-        pointsEarned,
-        pointsRedeemed,
-        status: 'received',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      const nextPoints = Math.min(100000, Math.max(0, currentPoints - pointsRedeemed + pointsEarned));
-      const nextLifetime = Math.min(1000000, (userProfile?.lifetimePoints ?? 50) + pointsEarned);
-
-      batch.update(userRef, {
-        loyaltyPoints: nextPoints,
-        lifetimePoints: nextLifetime,
-        updatedAt: serverTimestamp(),
-      });
-
-      try {
-        await batch.commit();
-        setCart([]);
-        setBagOpen(false);
-        showToast(`Order ${orderNumber} sent to the espresso bar`);
-        return {
-          id: orderId,
-          orderNumber,
-          userId: user.uid,
-          customerName,
-          customerEmail,
-          pickupType: input.pickupType,
-          pickupTime,
-          notes,
-          items: lineItems,
-          subtotalCents,
-          discountCents,
-          totalCents,
-          pointsEarned,
-          pointsRedeemed,
-          status: 'received',
-          createdAtMs: Date.now(),
-          updatedAtMs: Date.now(),
-        };
-      } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, `orders/${orderId}`);
-      }
-    },
-    [user, cart, userProfile, showToast]
-  );
-
-  const cancelOrder = useCallback(
-    async (orderId: string) => {
-      if (!user) return;
-      const orderRef = doc(db, 'orders', orderId);
-      try {
-        await updateDoc(orderRef, {
-          status: 'cancelled',
-          updatedAt: serverTimestamp(),
-        });
-        showToast('Order cancelled');
-      } catch (error) {
-        handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
-      }
-    },
-    [user, showToast]
-  );
-
-  const advanceOrderStatus = useCallback(
-    async (orderId: string, nextStatus: OrderStatus) => {
-      if (!isAdmin) return;
-      const orderRef = doc(db, 'orders', orderId);
-      try {
-        await updateDoc(orderRef, {
-          status: nextStatus,
-          updatedAt: serverTimestamp(),
-        });
-        showToast(`Order updated to ${nextStatus}`);
-      } catch (error) {
-        handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
-      }
-    },
-    [isAdmin, showToast]
-  );
-
   const seedDefaultMenu = useCallback(async () => {
     if (!isAdmin) return;
     const batch = writeBatch(db);
@@ -1046,7 +905,6 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
 
       try {
-        // If menu hasn't been synced to Firestore yet (or only legacy docs exist), seed all default items in the same batch
         if (!firestoreMenu || firestoreMenu.length === 0 || hasLegacyOnlyMenu) {
           const batch = writeBatch(db);
           if (firestoreMenu && firestoreMenu.length > 0) {
@@ -1135,22 +993,6 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [isAdmin, showToast]
   );
 
-  const updateFavoriteOrder = useCallback(
-    async (orderId: string) => {
-      if (!user) return;
-      try {
-        await updateDoc(doc(db, 'users', user.uid), {
-          favoriteOrderId: orderId.slice(0, 128),
-          updatedAt: serverTimestamp(),
-        });
-        showToast('Pinned favorite order for quick reorder');
-      } catch (error) {
-        handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
-      }
-    },
-    [user, showToast]
-  );
-
   return (
     <ShopContext.Provider
       value={{
@@ -1166,11 +1008,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isMenuSeeded,
         hasLegacyMenu,
         menuLoading,
-        cart,
-        bagOpen,
-        setBagOpen,
-        orders,
-        adminOrders,
+        itemPopularityById,
+        lovedItemIds,
+        ratedItems,
+        toggleLoveItem,
+        rateMenuItem,
         pageStats,
         pageStatsLoading,
         toastMessage,
@@ -1180,19 +1022,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         registerMemberWithGoogle,
         updateUserProfile,
         signOutUser,
-        addToCart,
-        updateCartQty,
-        updateCartItemOptions,
-        removeFromCart,
-        clearCart,
-        reorderFromHistory,
-        placeOrder,
-        cancelOrder,
-        advanceOrderStatus,
         seedDefaultMenu,
         saveMenuItem,
         deleteMenuItem,
-        updateFavoriteOrder,
         trackPageView,
         resetPageStats,
       }}

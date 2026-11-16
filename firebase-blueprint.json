@@ -164,7 +164,13 @@
         "preferredMilk": {
           "type": "string",
           "description": "Customer's preferred milk option.",
-          "enum": ["Whole Milk", "Oat Milk", "Almond Milk", "None"]
+          "enum": [
+            "Whole Milk",
+            "Oat Milk (Oatside)",
+            "Soy Milk (Kirkland)",
+            "Low Fat Milk",
+            "None"
+          ]
         },
         "createdAt": {
           "type": "string",
@@ -347,6 +353,38 @@
         }
       },
       "required": ["pageId", "views", "uniqueVisitors", "updatedAt"]
+    },
+    "ItemStat": {
+      "title": "ItemStat",
+      "description": "Public customer love and star rating counters per menu item.",
+      "type": "object",
+      "properties": {
+        "itemId": {
+          "type": "string",
+          "description": "Menu item identifier.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "loveCount": {
+          "type": "integer",
+          "description": "Live customer love reactions for this menu item."
+        },
+        "ratingSum": {
+          "type": "integer",
+          "description": "Cumulative sum of customer star ratings (1 to 5 each)."
+        },
+        "ratingCount": {
+          "type": "integer",
+          "description": "Total number of submitted star ratings."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Latest reaction timestamp."
+        }
+      },
+      "required": ["itemId", "loveCount", "ratingSum", "ratingCount", "updatedAt"]
     }
   },
   "firestore": {
@@ -369,6 +407,10 @@
     "/pageStats/{pageId}": {
       "schema": { "$ref": "#/entities/PageStat" },
       "description": "Website traffic and most-visited page counters readable only by shop administrators."
+    },
+    "/itemStats/{itemId}": {
+      "schema": { "$ref": "#/entities/ItemStat" },
+      "description": "Public customer love counters and star rating totals per menu item."
     }
   }
 }

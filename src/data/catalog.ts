@@ -2,7 +2,11 @@ import drinkMapleCardamomLatte from '../assets/images/drink_maple_cardamom_latte
 import drinkCeremonialMatcha from '../assets/images/drink_ceremonial_matcha_1794657964422.jpg';
 import drinkNitroColdBrew from '../assets/images/drink_nitro_cold_brew_1794657965762.jpg';
 import storyRoasteryBeans from '../assets/images/story_roastery_beans_1794657967623.jpg';
-import type { ImageKey, MenuCategory, MenuItem } from '../types/coffee';
+import type {
+  ImageKey,
+  MenuCategory,
+  MenuItem,
+} from '../types/coffee';
 
 export const SHOP_DETAILS = {
   name: 'Mang Kape',
@@ -56,6 +60,48 @@ export const MENU_CATEGORY_META: Record<MenuCategory, { subtitle: string }> = {
   'Blended Drinks': {
     subtitle: 'Ice-blended coffee and creamy caffeine-free frappes',
   },
+};
+
+export const BASE_ITEM_POPULARITY: Record<
+  string,
+  { loves: number; orders: number; ratingAvg: number; ratingCount: number }
+> = {
+  'classic-americano': { loves: 94, orders: 185, ratingAvg: 4.8, ratingCount: 42 },
+  'classic-flat-white': { loves: 82, orders: 140, ratingAvg: 4.8, ratingCount: 31 },
+  'classic-spanish-latte': { loves: 268, orders: 540, ratingAvg: 4.9, ratingCount: 118 },
+  'classic-caramel-macchiato': { loves: 192, orders: 390, ratingAvg: 4.9, ratingCount: 84 },
+  'classic-mocha-latte': { loves: 116, orders: 215, ratingAvg: 4.8, ratingCount: 47 },
+
+  'redefined-vietnamese-oat': { loves: 148, orders: 270, ratingAvg: 4.9, ratingCount: 59 },
+  'redefined-dark-oat-latte': { loves: 132, orders: 224, ratingAvg: 4.8, ratingCount: 51 },
+  'redefined-crunchy-biscoff-oat': { loves: 284, orders: 512, ratingAvg: 5.0, ratingCount: 126 },
+  'redefined-himalayan-salt-cream': { loves: 245, orders: 468, ratingAvg: 4.9, ratingCount: 109 },
+  'redefined-orange-americano': { loves: 121, orders: 198, ratingAvg: 4.8, ratingCount: 44 },
+  'redefined-dirty-matcha': { loves: 236, orders: 430, ratingAvg: 4.9, ratingCount: 96 },
+
+  'beyond-chocolate-milk': { loves: 88, orders: 164, ratingAvg: 4.7, ratingCount: 36 },
+  'beyond-strawberry-milk': { loves: 105, orders: 192, ratingAvg: 4.8, ratingCount: 43 },
+  'beyond-matcha-latte': { loves: 142, orders: 268, ratingAvg: 4.8, ratingCount: 62 },
+  'beyond-strawberry-matcha': { loves: 228, orders: 418, ratingAvg: 4.9, ratingCount: 94 },
+
+  'specialty-droplets': { loves: 214, orders: 386, ratingAvg: 4.9, ratingCount: 88 },
+  'specialty-filter-coffee': { loves: 96, orders: 152, ratingAvg: 4.8, ratingCount: 34 },
+  'specialty-on-the-rocks': { loves: 78, orders: 138, ratingAvg: 4.7, ratingCount: 29 },
+  'specialty-cup-of-joe': { loves: 164, orders: 295, ratingAvg: 4.9, ratingCount: 68 },
+  'specialty-green-reverie': { loves: 219, orders: 392, ratingAvg: 5.0, ratingCount: 91 },
+
+  'signature-baristas-choice': { loves: 256, orders: 488, ratingAvg: 5.0, ratingCount: 114 },
+  'signature-doppio-freddo': { loves: 138, orders: 245, ratingAvg: 4.8, ratingCount: 54 },
+  'signature-sugaroast': { loves: 176, orders: 334, ratingAvg: 4.9, ratingCount: 74 },
+  'signature-beanilla': { loves: 144, orders: 262, ratingAvg: 4.8, ratingCount: 58 },
+
+  'blended-biscoff-oat-cream': { loves: 232, orders: 415, ratingAvg: 4.9, ratingCount: 98 },
+  'blended-java-chip': { loves: 154, orders: 290, ratingAvg: 4.8, ratingCount: 65 },
+  'blended-caramel': { loves: 146, orders: 278, ratingAvg: 4.8, ratingCount: 61 },
+  'blended-dark-mocha': { loves: 128, orders: 232, ratingAvg: 4.8, ratingCount: 52 },
+  'blended-strawberry-cream': { loves: 118, orders: 210, ratingAvg: 4.8, ratingCount: 46 },
+  'blended-chocolate-chip': { loves: 109, orders: 196, ratingAvg: 4.7, ratingCount: 40 },
+  'blended-matcha-cream': { loves: 136, orders: 248, ratingAvg: 4.8, ratingCount: 55 },
 };
 
 export const DEFAULT_MENU_ITEMS: MenuItem[] = [
@@ -526,9 +572,9 @@ export const TRACKED_PAGES: {
   },
   {
     id: 'menu',
-    label: 'Drink Menu & Ordering',
+    label: 'Drinks Menu',
     route: '#menu',
-    description: '6-category handcrafted menu and drink customizer',
+    description: '6-category handcrafted menu with customer star ratings & favorites',
   },
   {
     id: 'story',
@@ -538,9 +584,9 @@ export const TRACKED_PAGES: {
   },
   {
     id: 'orders',
-    label: 'Orders & Rewards',
+    label: 'Member Account',
     route: '#orders',
-    description: 'Customer loyalty points & pickup order tracking',
+    description: 'Customer profile, loved drinks & loyalty perks',
   },
   {
     id: 'location',
@@ -552,7 +598,7 @@ export const TRACKED_PAGES: {
     id: 'cms',
     label: 'Store Manager',
     route: '#cms',
-    description: 'Admin menu manager, queue & analytics console',
+    description: 'Admin menu editor, photo manager & traffic console',
   },
 ];
 

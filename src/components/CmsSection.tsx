@@ -8,14 +8,15 @@ import {
   Plus,
   RotateCcw,
   Search,
+  Star,
   Trash2,
   UploadCloud,
   Users,
   X,
 } from 'lucide-react';
-import { formatCents, MENU_CATEGORIES, TRACKED_PAGES } from '../data/catalog';
+import { MENU_CATEGORIES, TRACKED_PAGES } from '../data/catalog';
 import { useShop } from '../context/ShopContext';
-import type { ImageKey, MenuCategory, MenuItem, OrderStatus } from '../types/coffee';
+import type { ImageKey, MenuCategory, MenuItem } from '../types/coffee';
 import { ResilientImage } from './ResilientImage';
 
 const TEMP_IMAGE_OPTIONS: { key: ImageKey; label: string }[] = [
@@ -88,17 +89,16 @@ export const CmsSection: React.FC = () => {
     menuItems,
     isMenuSeeded,
     hasLegacyMenu,
-    adminOrders,
+    itemPopularityById,
     pageStats,
     pageStatsLoading,
     seedDefaultMenu,
     saveMenuItem,
     deleteMenuItem,
-    advanceOrderStatus,
     resetPageStats,
   } = useShop();
 
-  const [activeTab, setActiveTab] = useState<'menu' | 'queue' | 'analytics'>('menu');
+  const [activeTab, setActiveTab] = useState<'menu' | 'analytics'>('menu');
   const [cmsSearch, setCmsSearch] = useState('');
   const [cmsCategory, setCmsCategory] = useState<'All' | MenuCategory>('All');
   const [photoFilter, setPhotoFilter] = useState<'all' | 'temp' | 'custom'>('all');
@@ -317,20 +317,6 @@ export const CmsSection: React.FC = () => {
     await saveMenuItem({ ...item, [field]: !item[field] }, false);
   };
 
-  const nextStatusFor = (status: OrderStatus): OrderStatus | null => {
-    if (status === 'received') return 'preparing';
-    if (status === 'preparing') return 'ready';
-    if (status === 'ready') return 'completed';
-    return null;
-  };
-
-  const nextActionLabel = (status: OrderStatus): string => {
-    if (status === 'received') return 'Start Brewing';
-    if (status === 'preparing') return 'Mark Ready';
-    if (status === 'ready') return 'Complete Pickup';
-    return '';
-  };
-
   if (!isAdmin) {
     return null;
   }
@@ -341,13 +327,13 @@ export const CmsSection: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
             <p className="text-xs font-medium text-[#4E4842] mb-2">
-              Shop Management &amp; Barista Console
+              Shop Management &amp; Storefront Console
             </p>
             <h2
               className="font-display text-3xl sm:text-4xl font-semibold text-[#181615] tracking-tight"
               style={{ textWrap: 'balance' }}
             >
-              Store manager, live queue &amp; analytics
+              Store manager, menu &amp; traffic analytics
             </h2>
           </div>
 
@@ -362,17 +348,6 @@ export const CmsSection: React.FC = () => {
               }`}
             >
               Menu &amp; Prices
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('queue')}
-              className={`px-3.5 py-2 text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
-                activeTab === 'queue'
-                  ? 'bg-white text-[#181615] shadow-sm'
-                  : 'text-[#4E4842] hover:text-[#181615]'
-              }`}
-            >
-              Barista Queue ({adminOrders.filter((o) => o.status !== 'completed' && o.status !== 'cancelled').length})
             </button>
             <button
               type="button"
@@ -811,6 +786,7 @@ export const CmsSection: React.FC = () => {
                       <th className="py-3.5 px-5">Photo</th>
                       <th className="py-3.5 px-4">Item</th>
                       <th className="py-3.5 px-4">Category</th>
+                      <th className="py-3.5 px-4">Stars &amp; Loves</th>
                       <th className="py-3.5 px-4">Price (₱)</th>
                       <th className="py-3.5 px-4">Seasonal</th>
                       <th className="py-3.5 px-4">Availability</th>
@@ -879,6 +855,22 @@ export const CmsSection: React.FC = () => {
                           </td>
                           <td className="py-3.5 px-4 text-xs text-[#4E4842] whitespace-nowrap">
                             {item.category}
+                          </td>
+                          <td className="py-3.5 px-4 text-xs whitespace-nowrap font-mono-tabular">
+                            {(() => {
+                              const pop = itemPopularityById[item.id];
+                              return (
+                                <div className="flex items-center gap-1.5">
+                                  <Star className="w-3.5 h-3.5 fill-[#C88A1E] text-[#C88A1E]" />
+                                  <span className="font-semibold text-[#181615]">
+                                    {pop ? pop.ratingAvg.toFixed(1) : '4.8'}
+                                  </span>
+                                  <span className="text-[#6B645C]">
+                                    · {pop ? pop.loveCount : 0} loves
+                                  </span>
+                                </div>
+                              );
+                            })()}
                           </td>
                           <td className="py-3.5 px-4 whitespace-nowrap">
                             <div className="inline-flex items-center gap-1.5">
@@ -975,76 +967,6 @@ export const CmsSection: React.FC = () => {
                     })}
                   </tbody>
                 </table>
-              </div>
-            )}
-          </div>
-        ) : activeTab === 'queue' ? (
-          /* Barista Order Queue Tab */
-          <div className="bg-white rounded-xl border border-[#E6E2D8] overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#E6E2D8] flex items-center justify-between">
-              <h3 className="text-base font-semibold text-[#181615]">Incoming Pickup Queue</h3>
-              <span className="text-xs font-mono-tabular text-[#6B645C]">
-                {adminOrders.length} total orders
-              </span>
-            </div>
-
-            {adminOrders.length === 0 ? (
-              <div className="p-10 text-center text-sm text-[#4E4842]">
-                No orders in the queue yet. Place an online pickup order to test live barista fulfillment.
-              </div>
-            ) : (
-              <div className="divide-y divide-[#EFECE4]">
-                {adminOrders.map((order) => {
-                  const next = nextStatusFor(order.status);
-                  return (
-                    <div
-                      key={order.id}
-                      className="px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-[#6B645C]">
-                          <span className="font-mono-tabular font-semibold text-[#181615]">
-                            {order.orderNumber}
-                          </span>
-                          <span aria-hidden="true">·</span>
-                          <span>{order.customerName}</span>
-                          <span aria-hidden="true">·</span>
-                          <span className="font-medium text-[#1B3B2B]">
-                            Mang Kape Shop ({order.pickupTime})
-                          </span>
-                          <span aria-hidden="true">·</span>
-                          <span className="font-mono-tabular uppercase">{order.status}</span>
-                        </div>
-                        <p className="text-sm text-[#181615]">
-                          {order.items
-                            .map(
-                              (it) =>
-                                `${it.qty}× ${it.name} (${it.size}, ${it.milk}, ${it.temperature}${it.extraShot ? ', +shot' : ''})`
-                            )
-                            .join(' · ')}
-                        </p>
-                        {order.notes && (
-                          <p className="text-xs text-[#4E4842]">Note: {order.notes}</p>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span className="text-sm font-semibold font-mono-tabular text-[#181615]">
-                          {formatCents(order.totalCents)}
-                        </span>
-                        {next && (
-                          <button
-                            type="button"
-                            onClick={() => advanceOrderStatus(order.id, next)}
-                            className="px-3.5 py-2 min-h-[38px] text-xs font-semibold text-white bg-[#1B3B2B] hover:bg-[#142D20] rounded-lg transition-colors cursor-pointer whitespace-nowrap"
-                          >
-                            {nextActionLabel(order.status)}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
               </div>
             )}
           </div>

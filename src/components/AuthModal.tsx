@@ -223,7 +223,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onAuthSuccess }) => {
               <div className="p-3.5 rounded-xl bg-white border border-[#E6E2D8] flex items-center gap-3">
                 <Award className="w-5 h-5 text-[#1B3B2B] shrink-0" />
                 <p className="text-xs text-[#4E4842]">
-                  New members receive <strong className="text-[#181615]">50 welcome points</strong> and personalized cup preferences for faster ordering.
+                  New members receive <strong className="text-[#181615]">50 welcome points</strong> and can save their preferred drink style and loved menu picks.
                 </p>
               </div>
 
@@ -312,9 +312,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onAuthSuccess }) => {
                     className="w-full px-3 py-2 text-sm bg-white border border-[#DFD9CC] rounded-lg focus:outline-2 focus:outline-[#1B3B2B]"
                   >
                     <option value="Whole Milk">Whole Milk</option>
-                    <option value="Oat Milk">Oat Milk</option>
-                    <option value="Almond Milk">Almond Milk</option>
-                    <option value="None">None</option>
+                    <option value="Oat Milk (Oatside)">Oat Milk (Oatside)</option>
+                    <option value="Soy Milk (Kirkland)">Soy Milk (Kirkland)</option>
+                    <option value="Low Fat Milk">Low Fat Milk</option>
+                    <option value="None">No Milk</option>
                   </select>
                 </div>
               </div>

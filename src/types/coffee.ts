@@ -8,13 +8,14 @@ export type MenuCategory =
 
 export type ImageKey = 'latte' | 'matcha' | 'coldbrew' | 'beans' | 'hero';
 
-export type OrderStatus = 'received' | 'preparing' | 'ready' | 'completed' | 'cancelled';
-
-export type PickupType = 'counter' | 'patio' | 'curbside';
-
 export type DrinkSize = '12 oz' | '16 oz' | '22 oz';
 
-export type MilkOption = 'Whole Milk' | 'Oat Milk' | 'Almond Milk' | 'None';
+export type MilkOption =
+  | 'Whole Milk'
+  | 'Oat Milk (Oatside)'
+  | 'Soy Milk (Kirkland)'
+  | 'Low Fat Milk'
+  | 'None';
 
 export type TempOption = 'Hot' | 'Iced';
 
@@ -35,49 +36,21 @@ export interface MenuItem {
   updatedAt?: unknown;
 }
 
-export interface CartItem {
-  cartKey: string;
-  menuItemId: string;
-  name: string;
-  category: MenuCategory;
-  imageKey: ImageKey;
-  size: DrinkSize;
-  milk: MilkOption;
-  temperature: TempOption;
-  extraShot: boolean;
-  qty: number;
-  unitPriceCents: number;
-}
-
-export interface OrderLineItem {
-  id: string;
-  name: string;
-  size: DrinkSize;
-  milk: MilkOption;
-  temperature: TempOption;
-  extraShot: boolean;
-  qty: number;
-  unitPriceCents: number;
-}
-
-export interface Order {
-  id: string;
-  orderNumber: string;
-  userId: string;
-  customerName: string;
-  customerEmail: string;
-  pickupType: PickupType;
-  pickupTime: string;
-  notes: string;
-  items: OrderLineItem[];
-  subtotalCents: number;
-  discountCents: number;
-  totalCents: number;
-  pointsEarned: number;
-  pointsRedeemed: number;
-  status: OrderStatus;
-  createdAtMs: number;
+export interface ItemStat {
+  itemId: string;
+  loveCount: number;
+  ratingSum: number;
+  ratingCount: number;
   updatedAtMs: number;
+}
+
+export interface MenuItemPopularity {
+  loveCount: number;
+  orderCount: number;
+  totalInteractions: number;
+  ratingAvg: number;
+  ratingCount: number;
+  isMostLoved: boolean;
 }
 
 export interface UserProfile {
