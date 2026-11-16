@@ -16,15 +16,8 @@ import {
 } from 'lucide-react';
 import { MENU_CATEGORIES, TRACKED_PAGES } from '../data/catalog';
 import { useShop } from '../context/ShopContext';
-import type { ImageKey, MenuCategory, MenuItem } from '../types/coffee';
+import type { MenuCategory, MenuItem } from '../types/coffee';
 import { ResilientImage } from './ResilientImage';
-
-const TEMP_IMAGE_OPTIONS: { key: ImageKey; label: string }[] = [
-  { key: 'latte', label: 'Warm Latte' },
-  { key: 'coldbrew', label: 'Iced / Cold Brew' },
-  { key: 'matcha', label: 'Matcha' },
-  { key: 'beans', label: 'Pour-Over Beans' },
-];
 
 async function compressImageToDataUrl(file: File): Promise<string> {
   if (!file.type.startsWith('image/')) {
@@ -95,6 +88,7 @@ export const CmsSection: React.FC = () => {
     seedDefaultMenu,
     saveMenuItem,
     deleteMenuItem,
+    resetMenuPhotosToDefault,
     resetPageStats,
   } = useShop();
 
@@ -103,6 +97,7 @@ export const CmsSection: React.FC = () => {
   const [cmsCategory, setCmsCategory] = useState<'All' | MenuCategory>('All');
   const [photoFilter, setPhotoFilter] = useState<'all' | 'temp' | 'custom'>('all');
   const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
+  const [resettingPhotos, setResettingPhotos] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -374,11 +369,32 @@ export const CmsSection: React.FC = () => {
                     : 'Default Starter Catalog Active (Auto-syncs on your first edit)'}
                 </p>
                 <p className="text-xs text-[#6B645C] mt-0.5">
-                  Temporary pictures appear until you upload a custom photo for an item.
+                  All menu items use the enhanced Mang Kape cup photo by default unless you upload a custom drink photo.
                 </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
+                {isMenuSeeded && photoCounts.custom > 0 && (
+                  <button
+                    type="button"
+                    disabled={resettingPhotos}
+                    onClick={async () => {
+                      setResettingPhotos(true);
+                      try {
+                        await resetMenuPhotosToDefault();
+                      } finally {
+                        setResettingPhotos(false);
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 px-3.5 py-2.5 min-h-[40px] text-xs font-semibold text-[#181615] bg-[#F3F1EC] hover:bg-[#E8E4DA] border border-[#DFD9CC] rounded-lg transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-[#1B3B2B]" />
+                    <span>
+                      {resettingPhotos ? 'Applying...' : 'Use Default Cup for All'}
+                    </span>
+                  </button>
+                )}
+
                 {(!isMenuSeeded || hasLegacyMenu) && (
                   <button
                     type="button"
@@ -445,24 +461,24 @@ export const CmsSection: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setPhotoFilter('temp')}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors cursor-pointer whitespace-nowrap ${
                       photoFilter === 'temp'
                         ? 'bg-[#1B3B2B] text-white border-[#1B3B2B]'
                         : 'bg-[#FAF9F6] text-[#4E4842] border-[#DFD9CC] hover:text-[#181615]'
                     }`}
                   >
-                    Needs Photo ({photoCounts.temp})
+                    Default Cup ({photoCounts.temp})
                   </button>
                   <button
                     type="button"
                     onClick={() => setPhotoFilter('custom')}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors cursor-pointer whitespace-nowrap ${
                       photoFilter === 'custom'
                         ? 'bg-[#1B3B2B] text-white border-[#1B3B2B]'
                         : 'bg-[#FAF9F6] text-[#4E4842] border-[#DFD9CC] hover:text-[#181615]'
                     }`}
                   >
-                    Uploaded Photo ({photoCounts.custom})
+                    Custom Photo ({photoCounts.custom})
                   </button>
                 </div>
               </div>
@@ -566,22 +582,22 @@ export const CmsSection: React.FC = () => {
                     <div className="flex-1 space-y-3 w-full">
                       <div>
                         <p className="text-xs font-semibold text-[#181615]">
-                          {draft.imageUrl ? 'Uploaded Item Photo' : 'Temporary Menu Picture Active'}
+                          {draft.imageUrl ? 'Custom Item Photo' : 'Default Mang Kape Cup Photo Active'}
                         </p>
                         <p className="text-xs text-[#6B645C] mt-0.5">
-                          Upload a square or landscape drink photo (automatically resized for fast storefront loading).
+                          Upload a square or landscape photo to override the default Mang Kape cup photo for this drink.
                         </p>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
-                        <label className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-[#1B3B2B] hover:bg-[#142D20] rounded-lg cursor-pointer transition-colors">
+                        <label className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-[#1B3B2B] hover:bg-[#142D20] rounded-lg cursor-pointer transition-colors whitespace-nowrap">
                           <Camera className="w-3.5 h-3.5" />
                           <span>
                             {uploadingItemId === 'draft'
                               ? 'Processing...'
                               : draft.imageUrl
                                 ? 'Replace Photo'
-                                : 'Upload Photo'}
+                                : 'Upload Custom Photo'}
                           </span>
                           <input
                             type="file"
@@ -598,31 +614,12 @@ export const CmsSection: React.FC = () => {
                         {draft.imageUrl && (
                           <button
                             type="button"
-                            onClick={() => setDraft({ ...draft, imageUrl: '' })}
-                            className="px-3 py-2 text-xs font-medium text-[#991B1B] bg-[#FEF2F2] hover:bg-[#FEE2E2] border border-[#FECACA] rounded-lg cursor-pointer"
+                            onClick={() => setDraft({ ...draft, imageUrl: '', imageKey: 'latte' })}
+                            className="px-3 py-2 text-xs font-medium text-[#181615] bg-[#F3F1EC] hover:bg-[#E8E4DA] border border-[#DFD9CC] rounded-lg cursor-pointer whitespace-nowrap"
                           >
-                            Remove Photo
+                            Revert to Default Cup
                           </button>
                         )}
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium text-[#4E4842] mb-1">
-                          Temporary Picture Fallback Style
-                        </label>
-                        <select
-                          value={draft.imageKey}
-                          onChange={(e) =>
-                            setDraft({ ...draft, imageKey: e.target.value as ImageKey })
-                          }
-                          className="w-full sm:w-auto px-3 py-1.5 text-xs bg-white border border-[#DFD9CC] rounded-lg focus:outline-2 focus:outline-[#1B3B2B]"
-                        >
-                          {TEMP_IMAGE_OPTIONS.map((opt) => (
-                            <option key={opt.key} value={opt.key}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
                       </div>
                     </div>
                   </div>
@@ -821,7 +818,7 @@ export const CmsSection: React.FC = () => {
                                     hasCustomPhoto ? 'text-[#1B3B2B]' : 'text-[#6B645C]'
                                   }`}
                                 >
-                                  {hasCustomPhoto ? 'Uploaded' : 'Temp photo'}
+                                  {hasCustomPhoto ? 'Custom' : 'Default cup'}
                                 </p>
                                 <label className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-[#181615] bg-[#F3F1EC] hover:bg-[#E8E4DA] border border-[#DFD9CC] rounded cursor-pointer transition-colors">
                                   <Camera className="w-3 h-3 text-[#1B3B2B]" />

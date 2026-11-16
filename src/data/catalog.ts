@@ -1,7 +1,4 @@
-import drinkMapleCardamomLatte from '../assets/images/drink_maple_cardamom_latte_1794657965188.jpg';
-import drinkCeremonialMatcha from '../assets/images/drink_ceremonial_matcha_1794657964422.jpg';
-import drinkNitroColdBrew from '../assets/images/drink_nitro_cold_brew_1794657965762.jpg';
-import storyRoasteryBeans from '../assets/images/story_roastery_beans_1794657967623.jpg';
+import mangKapeDefaultCup from '../assets/images/mang_kape_default_cup_1794805993103.jpg';
 import type {
   ImageKey,
   MenuCategory,
@@ -26,10 +23,10 @@ export const SHOP_DETAILS = {
 
 export const IMAGE_MAP: Record<ImageKey, string> = {
   hero: '/assets/aistudio/IMG_9330_Original_22273f4b.jpg',
-  latte: drinkMapleCardamomLatte,
-  matcha: drinkCeremonialMatcha,
-  coldbrew: drinkNitroColdBrew,
-  beans: storyRoasteryBeans,
+  latte: mangKapeDefaultCup,
+  matcha: mangKapeDefaultCup,
+  coldbrew: mangKapeDefaultCup,
+  beans: mangKapeDefaultCup,
 };
 
 export const MENU_CATEGORIES: MenuCategory[] = [
@@ -117,7 +114,7 @@ export const DEFAULT_MENU_ITEMS: MenuItem[] = [
     isSeasonal: false,
     inStock: true,
     featured: false,
-    imageKey: 'coldbrew',
+    imageKey: 'latte',
     sortOrder: 1,
   },
   {
@@ -189,7 +186,7 @@ export const DEFAULT_MENU_ITEMS: MenuItem[] = [
     isSeasonal: false,
     inStock: true,
     featured: false,
-    imageKey: 'coldbrew',
+    imageKey: 'latte',
     sortOrder: 6,
   },
   {
@@ -231,7 +228,7 @@ export const DEFAULT_MENU_ITEMS: MenuItem[] = [
     isSeasonal: true,
     inStock: true,
     featured: true,
-    imageKey: 'coldbrew',
+    imageKey: 'latte',
     sortOrder: 9,
   },
   {
@@ -245,7 +242,7 @@ export const DEFAULT_MENU_ITEMS: MenuItem[] = [
     isSeasonal: true,
     inStock: true,
     featured: false,
-    imageKey: 'coldbrew',
+    imageKey: 'latte',
     sortOrder: 10,
   },
   {
@@ -259,7 +256,7 @@ export const DEFAULT_MENU_ITEMS: MenuItem[] = [
     isSeasonal: false,
     inStock: true,
     featured: true,
-    imageKey: 'matcha',
+    imageKey: 'latte',
     sortOrder: 11,
   },
 
@@ -289,7 +286,7 @@ export const DEFAULT_MENU_ITEMS: MenuItem[] = [
     isSeasonal: false,
     inStock: true,
     featured: false,
-    imageKey: 'coldbrew',
+    imageKey: 'latte',
     sortOrder: 13,
   },
   {
@@ -303,7 +300,7 @@ export const DEFAULT_MENU_ITEMS: MenuItem[] = [
     isSeasonal: false,
     inStock: true,
     featured: false,
-    imageKey: 'matcha',
+    imageKey: 'latte',
     sortOrder: 14,
   },
   {
@@ -317,7 +314,7 @@ export const DEFAULT_MENU_ITEMS: MenuItem[] = [
     isSeasonal: true,
     inStock: true,
     featured: true,
-    imageKey: 'matcha',
+    imageKey: 'latte',
     sortOrder: 15,
   },
 
@@ -333,7 +330,7 @@ export const DEFAULT_MENU_ITEMS: MenuItem[] = [
     isSeasonal: true,
     inStock: true,
     featured: true,
-    imageKey: 'coldbrew',
+    imageKey: 'latte',
     sortOrder: 16,
   },
   {
@@ -347,7 +344,7 @@ export const DEFAULT_MENU_ITEMS: MenuItem[] = [
     isSeasonal: false,
     inStock: true,
     featured: false,
-    imageKey: 'beans',
+    imageKey: 'latte',
     sortOrder: 17,
   },
   {
@@ -361,7 +358,7 @@ export const DEFAULT_MENU_ITEMS: MenuItem[] = [
     isSeasonal: false,
     inStock: true,
     featured: false,
-    imageKey: 'coldbrew',
+    imageKey: 'latte',
     sortOrder: 18,
   },
   {
@@ -389,7 +386,7 @@ export const DEFAULT_MENU_ITEMS: MenuItem[] = [
     isSeasonal: true,
     inStock: true,
     featured: true,
-    imageKey: 'matcha',
+    imageKey: 'latte',
     sortOrder: 20,
   },
 
@@ -419,7 +416,7 @@ export const DEFAULT_MENU_ITEMS: MenuItem[] = [
     isSeasonal: false,
     inStock: true,
     featured: false,
-    imageKey: 'coldbrew',
+    imageKey: 'latte',
     sortOrder: 22,
   },
   {
@@ -463,7 +460,7 @@ export const DEFAULT_MENU_ITEMS: MenuItem[] = [
     isSeasonal: true,
     inStock: true,
     featured: true,
-    imageKey: 'coldbrew',
+    imageKey: 'latte',
     sortOrder: 25,
   },
   {
@@ -477,7 +474,7 @@ export const DEFAULT_MENU_ITEMS: MenuItem[] = [
     isSeasonal: false,
     inStock: true,
     featured: false,
-    imageKey: 'coldbrew',
+    imageKey: 'latte',
     sortOrder: 26,
   },
   {
@@ -491,7 +488,7 @@ export const DEFAULT_MENU_ITEMS: MenuItem[] = [
     isSeasonal: false,
     inStock: true,
     featured: false,
-    imageKey: 'coldbrew',
+    imageKey: 'latte',
     sortOrder: 27,
   },
   {
@@ -505,7 +502,7 @@ export const DEFAULT_MENU_ITEMS: MenuItem[] = [
     isSeasonal: false,
     inStock: true,
     featured: false,
-    imageKey: 'coldbrew',
+    imageKey: 'latte',
     sortOrder: 28,
   },
   {
@@ -519,7 +516,7 @@ export const DEFAULT_MENU_ITEMS: MenuItem[] = [
     isSeasonal: false,
     inStock: true,
     featured: false,
-    imageKey: 'coldbrew',
+    imageKey: 'latte',
     sortOrder: 29,
   },
   {
@@ -533,7 +530,7 @@ export const DEFAULT_MENU_ITEMS: MenuItem[] = [
     isSeasonal: false,
     inStock: true,
     featured: false,
-    imageKey: 'coldbrew',
+    imageKey: 'latte',
     sortOrder: 30,
   },
   {
@@ -547,7 +544,7 @@ export const DEFAULT_MENU_ITEMS: MenuItem[] = [
     isSeasonal: false,
     inStock: true,
     featured: false,
-    imageKey: 'matcha',
+    imageKey: 'latte',
     sortOrder: 31,
   },
 ];

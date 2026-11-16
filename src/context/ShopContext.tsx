@@ -117,6 +117,7 @@ interface ShopContextValue {
   seedDefaultMenu: () => Promise<void>;
   saveMenuItem: (item: MenuItem, isNew: boolean) => Promise<void>;
   deleteMenuItem: (itemId: string) => Promise<void>;
+  resetMenuPhotosToDefault: () => Promise<void>;
   trackPageView: (pageId: TrackedPageId) => void;
   resetPageStats: () => Promise<void>;
 }
@@ -1117,6 +1118,41 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [isAdmin, showToast]
   );
 
+  const resetMenuPhotosToDefault = useCallback(async () => {
+    if (!isAdmin) return;
+    if (!firestoreMenu || firestoreMenu.length === 0) {
+      showToast('All menu items already use the default Mang Kape cup photo');
+      return;
+    }
+
+    const batch = writeBatch(db);
+    let updatedCount = 0;
+
+    firestoreMenu.forEach((item) => {
+      if ((item.imageUrl && item.imageUrl.trim()) || item.imageKey !== 'latte') {
+        const cleanId = sanitizeId(item.id);
+        batch.update(doc(db, 'menuItems', cleanId), {
+          imageUrl: '',
+          imageKey: 'latte',
+          updatedAt: serverTimestamp(),
+        });
+        updatedCount += 1;
+      }
+    });
+
+    if (updatedCount === 0) {
+      showToast('All menu items already use the default Mang Kape cup photo');
+      return;
+    }
+
+    try {
+      await batch.commit();
+      showToast(`Applied default Mang Kape cup photo to ${updatedCount} menu items`);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'menuItems');
+    }
+  }, [isAdmin, firestoreMenu, showToast]);
+
   return (
     <ShopContext.Provider
       value={{
@@ -1153,6 +1189,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         seedDefaultMenu,
         saveMenuItem,
         deleteMenuItem,
+        resetMenuPhotosToDefault,
         trackPageView,
         resetPageStats,
       }}
