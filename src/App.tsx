@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AccountAndTrackingSection } from './components/AccountAndTrackingSection';
 import { AuthModal } from './components/AuthModal';
 import { CmsSection } from './components/CmsSection';
@@ -15,6 +15,11 @@ import { MenuSection } from './components/MenuSection';
 import { Navbar } from './components/Navbar';
 import { StorySection } from './components/StorySection';
 import { ShopProvider, useShop } from './context/ShopContext';
+import {
+  getSectionPath,
+  resolveSectionFromLocation,
+  SECTION_TITLES,
+} from './data/catalog';
 import type { TrackedPageId } from './types/coffee';
 
 const SECTION_TO_PAGE_ID: Record<string, TrackedPageId> = {
@@ -45,6 +50,31 @@ const ToastBanner: React.FC = () => {
 const StorefrontContent: React.FC = () => {
   const { trackPageView, isAdmin } = useShop();
   const [mapsQuotaExceeded, setMapsQuotaExceeded] = useState(false);
+  const [activeSection, setActiveSection] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'top';
+    return resolveSectionFromLocation(window.location.pathname, window.location.hash) || 'top';
+  });
+
+  const programmaticLockUntilRef = useRef<number>(0);
+  const initialHandledRef = useRef<boolean>(false);
+  const visibleRatiosRef = useRef<Record<string, number>>({});
+
+  const syncBrowserUrl = useCallback((sectionId: string, mode: 'push' | 'replace') => {
+    const nextPath = getSectionPath(sectionId);
+    const nextTitle = SECTION_TITLES[sectionId] || SECTION_TITLES.top;
+    if (document.title !== nextTitle) {
+      document.title = nextTitle;
+    }
+
+    const currentUrl = `${window.location.pathname}${window.location.hash}`;
+    if (currentUrl !== nextPath) {
+      if (mode === 'push') {
+        window.history.pushState({ sectionId }, '', nextPath);
+      } else {
+        window.history.replaceState({ sectionId }, '', nextPath);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const onQuota = () => setMapsQuotaExceeded(true);
@@ -52,12 +82,69 @@ const StorefrontContent: React.FC = () => {
     return () => window.removeEventListener('gmp-quota-exceeded', onQuota);
   }, []);
 
+  // Scroll to matching section on initial load (e.g. direct visit to /our-story or /menu)
+  useEffect(() => {
+    if (initialHandledRef.current) return;
+    const initialSection = resolveSectionFromLocation(
+      window.location.pathname,
+      window.location.hash
+    );
+
+    if (!initialSection) return;
+    if (initialSection === 'cms' && !isAdmin) return;
+
+    initialHandledRef.current = true;
+    setActiveSection(initialSection);
+    syncBrowserUrl(initialSection, 'replace');
+
+    if (initialSection !== 'top') {
+      const el = document.getElementById(initialSection);
+      if (el) {
+        programmaticLockUntilRef.current = Date.now() + 900;
+        requestAnimationFrame(() => {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      }
+    }
+  }, [isAdmin, syncBrowserUrl]);
+
+  // Browser back / forward navigation support
+  useEffect(() => {
+    const handlePopState = () => {
+      const targetSection =
+        resolveSectionFromLocation(window.location.pathname, window.location.hash) || 'top';
+      setActiveSection(targetSection);
+      document.title = SECTION_TITLES[targetSection] || SECTION_TITLES.top;
+
+      const pageId = SECTION_TO_PAGE_ID[targetSection];
+      if (pageId) {
+        trackPageView(pageId);
+      }
+
+      const el = document.getElementById(targetSection);
+      if (el) {
+        programmaticLockUntilRef.current = Date.now() + 900;
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [trackPageView]);
+
+  // Observe visible sections for analytics and manual-scroll URL syncing
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined') return;
+
+    visibleRatiosRef.current = {};
 
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
+          visibleRatiosRef.current[entry.target.id] = entry.isIntersecting
+            ? entry.intersectionRatio
+            : 0;
+
           if (entry.isIntersecting) {
             const pageId = SECTION_TO_PAGE_ID[entry.target.id];
             if (pageId) {
@@ -65,8 +152,26 @@ const StorefrontContent: React.FC = () => {
             }
           }
         });
+
+        if (Date.now() < programmaticLockUntilRef.current) {
+          return;
+        }
+
+        let bestSection: string | null = null;
+        let bestRatio = 0;
+        Object.entries(visibleRatiosRef.current).forEach(([id, ratio]) => {
+          if (ratio > bestRatio) {
+            bestRatio = ratio;
+            bestSection = id;
+          }
+        });
+
+        if (bestSection && bestRatio >= 0.2) {
+          setActiveSection(bestSection);
+          syncBrowserUrl(bestSection, 'replace');
+        }
       },
-      { threshold: 0.3 }
+      { threshold: [0, 0.2, 0.4, 0.65] }
     );
 
     const sectionIds = Object.keys(SECTION_TO_PAGE_ID);
@@ -76,7 +181,7 @@ const StorefrontContent: React.FC = () => {
     });
 
     return () => observer.disconnect();
-  }, [trackPageView, isAdmin]);
+  }, [trackPageView, isAdmin, syncBrowserUrl]);
 
   const navigateTo = useCallback(
     (sectionId: string) => {
@@ -84,12 +189,17 @@ const StorefrontContent: React.FC = () => {
       if (pageId) {
         trackPageView(pageId);
       }
+
+      setActiveSection(sectionId);
+      syncBrowserUrl(sectionId, 'push');
+      programmaticLockUntilRef.current = Date.now() + 950;
+
       const el = document.getElementById(sectionId);
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     },
-    [trackPageView]
+    [trackPageView, syncBrowserUrl]
   );
 
   return (
@@ -111,7 +221,7 @@ const StorefrontContent: React.FC = () => {
         </div>
       )}
 
-      <Navbar onNavigate={navigateTo} />
+      <Navbar onNavigate={navigateTo} activeSection={activeSection} />
 
       <main className="flex-1">
         <HeroSection
@@ -125,7 +235,7 @@ const StorefrontContent: React.FC = () => {
         />
         <MenuSection />
         <StorySection />
-        <AccountAndTrackingSection />
+        <AccountAndTrackingSection onNavigate={navigateTo} />
         <LocationSection />
         <CmsSection />
       </main>

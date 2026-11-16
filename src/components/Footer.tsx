@@ -1,5 +1,5 @@
 import React from 'react';
-import { SHOP_DETAILS } from '../data/catalog';
+import { getSectionPath, SHOP_DETAILS } from '../data/catalog';
 import { useShop } from '../context/ShopContext';
 
 interface FooterProps {
@@ -52,7 +52,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             ].map((item) => (
               <a
                 key={item.target}
-                href={`#${item.target}`}
+                href={getSectionPath(item.target)}
                 onClick={(e) => {
                   e.preventDefault();
                   onNavigate(item.target);

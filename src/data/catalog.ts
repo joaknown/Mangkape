@@ -549,6 +549,57 @@ export const DEFAULT_MENU_ITEMS: MenuItem[] = [
   },
 ];
 
+export const SECTION_ROUTES: Record<string, string> = {
+  top: '/',
+  'holiday-treats': '/holiday-treats',
+  menu: '/menu',
+  story: '/our-story',
+  orders: '/account',
+  location: '/location',
+  cms: '/store-manager',
+};
+
+export const SECTION_TITLES: Record<string, string> = {
+  top: 'Mang Kape — Brewing happiness, one cup at a time',
+  'holiday-treats': 'Holiday Treats — Mang Kape',
+  menu: 'Menu — Mang Kape',
+  story: 'Our Story — Mang Kape',
+  orders: 'My Account — Mang Kape',
+  location: 'Location — Mang Kape',
+  cms: 'Store Manager — Mang Kape',
+};
+
+const ROUTE_TO_SECTION: Record<string, string> = {
+  '/': 'top',
+  '/home': 'top',
+  '/top': 'top',
+  '/holiday-treats': 'holiday-treats',
+  '/menu': 'menu',
+  '/our-story': 'story',
+  '/story': 'story',
+  '/account': 'orders',
+  '/orders': 'orders',
+  '/location': 'location',
+  '/store-manager': 'cms',
+  '/cms': 'cms',
+};
+
+export function getSectionPath(sectionId: string): string {
+  return SECTION_ROUTES[sectionId] || '/';
+}
+
+export function resolveSectionFromLocation(pathname: string, hash: string): string | null {
+  const normalizedPath = pathname.replace(/\/+$/, '').toLowerCase() || '/';
+  if (normalizedPath !== '/' && ROUTE_TO_SECTION[normalizedPath]) {
+    return ROUTE_TO_SECTION[normalizedPath];
+  }
+  const cleanHash = hash.replace(/^#/, '').toLowerCase();
+  if (cleanHash && ROUTE_TO_SECTION[`/${cleanHash}`]) {
+    return ROUTE_TO_SECTION[`/${cleanHash}`];
+  }
+  return normalizedPath === '/' ? 'top' : null;
+}
+
 export const TRACKED_PAGES: {
   id: 'home' | 'holiday-treats' | 'menu' | 'story' | 'orders' | 'location' | 'cms';
   label: string;
@@ -558,43 +609,43 @@ export const TRACKED_PAGES: {
   {
     id: 'home',
     label: 'Home & Cover',
-    route: '#top',
+    route: '/',
     description: 'Storefront hero, opening hours, and mission intro',
   },
   {
     id: 'holiday-treats',
     label: 'Holiday Treats',
-    route: '#holiday-treats',
+    route: '/holiday-treats',
     description: 'Seasonal drinks highlight showcase',
   },
   {
     id: 'menu',
     label: 'Drinks Menu',
-    route: '#menu',
+    route: '/menu',
     description: '6-category handcrafted menu with customer star ratings & favorites',
   },
   {
     id: 'story',
     label: 'Our Story',
-    route: '#story',
+    route: '/our-story',
     description: 'Humble beginnings narrative & throwback gallery',
   },
   {
     id: 'orders',
     label: 'Member Account',
-    route: '#orders',
+    route: '/account',
     description: 'Customer profile, loved drinks & loyalty perks',
   },
   {
     id: 'location',
     label: 'Location & Map',
-    route: '#location',
+    route: '/location',
     description: 'Roxas City address, store hours & Google Map',
   },
   {
     id: 'cms',
     label: 'Store Manager',
-    route: '#cms',
+    route: '/store-manager',
     description: 'Admin menu editor, photo manager & traffic console',
   },
 ];

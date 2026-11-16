@@ -8,7 +8,7 @@ import {
   UserCheck,
   UserPlus,
 } from 'lucide-react';
-import { formatCents, SHOP_DETAILS } from '../data/catalog';
+import { formatCents, getSectionPath, SHOP_DETAILS } from '../data/catalog';
 import { useShop } from '../context/ShopContext';
 import type {
   DrinkSize,
@@ -16,7 +16,13 @@ import type {
   TempOption,
 } from '../types/coffee';
 
-export const AccountAndTrackingSection: React.FC = () => {
+interface AccountAndTrackingSectionProps {
+  onNavigate?: (sectionId: string) => void;
+}
+
+export const AccountAndTrackingSection: React.FC<AccountAndTrackingSectionProps> = ({
+  onNavigate,
+}) => {
   const {
     user,
     authReady,
@@ -123,7 +129,13 @@ export const AccountAndTrackingSection: React.FC = () => {
             <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
               {isAdmin && (
                 <a
-                  href="#cms"
+                  href={getSectionPath('cms')}
+                  onClick={(e) => {
+                    if (onNavigate) {
+                      e.preventDefault();
+                      onNavigate('cms');
+                    }
+                  }}
                   className="inline-flex items-center gap-2 px-4 py-2 min-h-[40px] text-xs font-semibold text-white bg-[#1B3B2B] hover:bg-[#142D20] rounded-lg transition-colors whitespace-nowrap shrink-0"
                 >
                   <span>Open Store Manager</span>
@@ -496,7 +508,13 @@ export const AccountAndTrackingSection: React.FC = () => {
                     Tap the Love icon on any drink in the menu above to save your go-to cups here.
                   </p>
                   <a
-                    href="#menu"
+                    href={getSectionPath('menu')}
+                    onClick={(e) => {
+                      if (onNavigate) {
+                        e.preventDefault();
+                        onNavigate('menu');
+                      }
+                    }}
                     className="inline-flex items-center px-4 py-2 text-xs font-semibold text-white bg-[#1B3B2B] hover:bg-[#142D20] rounded-lg transition-colors"
                   >
                     Browse Drinks Menu

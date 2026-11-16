@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Menu, User, X } from 'lucide-react';
-import { SHOP_DETAILS } from '../data/catalog';
+import { getSectionPath, SHOP_DETAILS } from '../data/catalog';
 import { useShop } from '../context/ShopContext';
 
 interface NavbarProps {
   onNavigate: (sectionId: string) => void;
+  activeSection?: string;
 }
 
 const BASE_NAV_LINKS = [
@@ -14,7 +15,7 @@ const BASE_NAV_LINKS = [
   { label: 'Location', target: 'location' },
 ];
 
-export const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activeSection = 'top' }) => {
   const { user, isAdmin, openAuthModal } = useShop();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -39,7 +40,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-8">
         {/* Zone 1: Brand Title */}
         <a
-          href="#top"
+          href={getSectionPath('top')}
           onClick={(e) => {
             e.preventDefault();
             handleLinkClick('top');
@@ -57,19 +58,27 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
 
         {/* Zone 2: 4 concise single-line text navigation links */}
         <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-[#4E4842]">
-          {BASE_NAV_LINKS.map((link) => (
-            <a
-              key={link.target}
-              href={`#${link.target}`}
-              onClick={(e) => {
-                e.preventDefault();
-                handleLinkClick(link.target);
-              }}
-              className="whitespace-nowrap shrink-0 py-1 border-b border-transparent hover:text-[#181615] hover:border-[#181615] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1B3B2B]"
-            >
-              {link.label}
-            </a>
-          ))}
+          {BASE_NAV_LINKS.map((link) => {
+            const isActive = activeSection === link.target;
+            return (
+              <a
+                key={link.target}
+                href={getSectionPath(link.target)}
+                aria-current={isActive ? 'page' : undefined}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleLinkClick(link.target);
+                }}
+                className={`whitespace-nowrap shrink-0 py-1 border-b transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1B3B2B] ${
+                  isActive
+                    ? 'text-[#181615] border-[#1B3B2B] font-semibold'
+                    : 'border-transparent hover:text-[#181615] hover:border-[#181615]'
+                }`}
+              >
+                {link.label}
+              </a>
+            );
+          })}
         </nav>
 
         {/* Zone 3: 1 Primary Action + Mobile Menu Trigger */}
@@ -101,19 +110,27 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
           aria-label="Mobile navigation"
           className="md:hidden border-t border-[#E6E2D8] bg-[#FAF9F6] px-4 py-3 flex flex-col gap-1"
         >
-          {BASE_NAV_LINKS.map((link) => (
-            <a
-              key={link.target}
-              href={`#${link.target}`}
-              onClick={(e) => {
-                e.preventDefault();
-                handleLinkClick(link.target);
-              }}
-              className="px-3 py-3 min-h-[44px] flex items-center text-sm font-medium text-[#181615] rounded-lg hover:bg-[#EFECE4] transition-colors"
-            >
-              {link.label}
-            </a>
-          ))}
+          {BASE_NAV_LINKS.map((link) => {
+            const isActive = activeSection === link.target;
+            return (
+              <a
+                key={link.target}
+                href={getSectionPath(link.target)}
+                aria-current={isActive ? 'page' : undefined}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleLinkClick(link.target);
+                }}
+                className={`px-3 py-3 min-h-[44px] flex items-center text-sm font-medium rounded-lg transition-colors ${
+                  isActive
+                    ? 'bg-[#EFECE4] text-[#1B3B2B] font-semibold'
+                    : 'text-[#181615] hover:bg-[#EFECE4]'
+                }`}
+              >
+                {link.label}
+              </a>
+            );
+          })}
         </nav>
       )}
     </header>
