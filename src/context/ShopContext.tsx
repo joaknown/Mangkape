@@ -43,6 +43,7 @@ import type {
   ItemStat,
   MenuItem,
   MenuItemPopularity,
+  MenuReview,
   MilkOption,
   PageStat,
   PageStatId,
@@ -86,17 +87,21 @@ interface ShopContextValue {
   userProfile: UserProfile | null;
   authModalOpen: boolean;
   authModalTab: 'login' | 'register';
-  openAuthModal: (tab?: 'login' | 'register') => void;
+  authSkipRedirect: boolean;
+  openAuthModal: (tab?: 'login' | 'register', skipRedirect?: boolean) => void;
   closeAuthModal: () => void;
   menuItems: MenuItem[];
   isMenuSeeded: boolean;
   hasLegacyMenu: boolean;
   menuLoading: boolean;
   itemPopularityById: Record<string, MenuItemPopularity>;
+  reviewsByItemId: Record<string, MenuReview[]>;
   lovedItemIds: string[];
   ratedItems: Record<string, number>;
   toggleLoveItem: (item: MenuItem) => Promise<void>;
   rateMenuItem: (item: MenuItem, stars: number) => Promise<void>;
+  saveMenuReview: (item: MenuItem, rating: number, comment: string) => Promise<void>;
+  deleteMenuReview: (reviewId: string) => Promise<void>;
   pageStats: PageStat[];
   pageStatsLoading: boolean;
   toastMessage: string | null;
@@ -140,6 +145,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [firestoreMenu, setFirestoreMenu] = useState<MenuItem[] | null>(null);
   const [menuLoading, setMenuLoading] = useState(true);
   const [itemStats, setItemStats] = useState<Record<string, ItemStat>>({});
+  const [reviews, setReviews] = useState<MenuReview[]>([]);
 
   const [lovedItemIds, setLovedItemIds] = useState<string[]>(() => {
     try {
@@ -173,14 +179,19 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authError, setAuthError] = useState<string | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('login');
+  const [authSkipRedirect, setAuthSkipRedirect] = useState(false);
   const recordedSessionRef = useRef<Set<PageStatId>>(new Set());
   const registrationInProgressRef = useRef(false);
 
-  const openAuthModal = useCallback((tab: 'login' | 'register' = 'login') => {
-    setAuthError(null);
-    setAuthModalTab(tab);
-    setAuthModalOpen(true);
-  }, []);
+  const openAuthModal = useCallback(
+    (tab: 'login' | 'register' = 'login', skipRedirect = false) => {
+      setAuthError(null);
+      setAuthModalTab(tab);
+      setAuthSkipRedirect(skipRedirect);
+      setAuthModalOpen(true);
+    },
+    []
+  );
 
   const closeAuthModal = useCallback(() => {
     setAuthModalOpen(false);
@@ -303,6 +314,44 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsub();
   }, []);
 
+  // Public customer reviews listener
+  useEffect(() => {
+    const reviewsRef = query(collection(db, 'reviews'), orderBy('updatedAt', 'desc'));
+    const unsub = onSnapshot(
+      reviewsRef,
+      (snap) => {
+        const list: MenuReview[] = snap.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: String(data.id || d.id),
+            itemId: String(data.itemId || ''),
+            itemName: String(data.itemName || ''),
+            userId: String(data.userId || ''),
+            authorName: String(data.authorName || 'Member'),
+            rating: Number(data.rating ?? 5),
+            comment: String(data.comment || ''),
+            createdAtMs: timestampToMs(data.createdAt),
+            updatedAtMs: timestampToMs(data.updatedAt),
+          };
+        });
+        setReviews(list);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'reviews');
+      }
+    );
+    return () => unsub();
+  }, []);
+
+  const reviewsByItemId = useMemo<Record<string, MenuReview[]>>(() => {
+    const grouped: Record<string, MenuReview[]> = {};
+    reviews.forEach((rev) => {
+      if (!grouped[rev.itemId]) grouped[rev.itemId] = [];
+      grouped[rev.itemId].push(rev);
+    });
+    return grouped;
+  }, [reviews]);
+
   const hasLegacyMenu = Boolean(
     firestoreMenu &&
       firestoreMenu.length > 0 &&
@@ -331,19 +380,23 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ratingCount: item.featured ? 45 : 22,
       };
       const live = itemStats[item.id];
+      const itemReviews = reviewsByItemId[item.id] ?? [];
       const liveLoves = Math.max(0, live?.loveCount ?? 0);
       const liveRatingCount = Math.max(0, live?.ratingCount ?? 0);
       const liveRatingSum = Math.max(0, live?.ratingSum ?? 0);
+      const reviewRatingSum = itemReviews.reduce((sum, r) => sum + r.rating, 0);
 
       const baseRatingSum = base.ratingAvg * base.ratingCount;
-      const totalRatingCount = base.ratingCount + liveRatingCount;
+      const totalRatingCount = base.ratingCount + liveRatingCount + itemReviews.length;
       const rawAvg =
-        totalRatingCount > 0 ? (baseRatingSum + liveRatingSum) / totalRatingCount : 4.8;
+        totalRatingCount > 0
+          ? (baseRatingSum + liveRatingSum + reviewRatingSum) / totalRatingCount
+          : 4.8;
       const ratingAvg = Math.min(5, Math.max(1, Math.round(rawAvg * 10) / 10));
 
       const loveCount = base.loves + liveLoves;
       const orderCount = base.orders;
-      const totalInteractions = loveCount + orderCount;
+      const totalInteractions = loveCount + orderCount + itemReviews.length;
 
       return {
         id: item.id,
@@ -352,6 +405,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         totalInteractions,
         ratingAvg,
         ratingCount: totalRatingCount,
+        reviewCount: itemReviews.length,
       };
     });
 
@@ -368,11 +422,12 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         totalInteractions: entry.totalInteractions,
         ratingAvg: entry.ratingAvg,
         ratingCount: entry.ratingCount,
+        reviewCount: entry.reviewCount,
         isMostLoved: mostLovedSet.has(entry.id),
       };
     });
     return result;
-  }, [menuItems, itemStats]);
+  }, [menuItems, itemStats, reviewsByItemId]);
 
   // Authenticated User Profile + Admin check listeners
   useEffect(() => {
@@ -588,6 +643,75 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     },
     [ratedItems, showToast]
+  );
+
+  const saveMenuReview = useCallback(
+    async (item: MenuItem, rating: number, comment: string) => {
+      if (!user || !user.emailVerified) {
+        throw new Error('Please log in with a verified account to leave a review.');
+      }
+      const cleanComment = comment.trim().slice(0, 400);
+      if (cleanComment.length < 3) {
+        throw new Error('Please write at least 3 characters in your review comment.');
+      }
+      const clampedRating = Math.min(5, Math.max(1, Math.round(rating)));
+      const cleanItemId = sanitizeId(item.id);
+      const reviewId = `${cleanItemId}__${user.uid}`;
+      const reviewRef = doc(db, 'reviews', reviewId);
+      const authorName = (
+        userProfile?.displayName ||
+        user.displayName ||
+        user.email?.split('@')[0] ||
+        'Mang Kape Member'
+      )
+        .trim()
+        .slice(0, 80);
+      const itemName = item.name.trim().slice(0, 80);
+
+      try {
+        const snap = await getDoc(reviewRef);
+        if (!snap.exists()) {
+          await setDoc(reviewRef, {
+            id: reviewId,
+            itemId: cleanItemId,
+            itemName,
+            userId: user.uid,
+            authorName,
+            rating: clampedRating,
+            comment: cleanComment,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+          showToast(`Published your ${clampedRating}★ review for ${item.name}`);
+        } else {
+          await updateDoc(reviewRef, {
+            authorName,
+            itemName,
+            rating: clampedRating,
+            comment: cleanComment,
+            updatedAt: serverTimestamp(),
+          });
+          showToast(`Updated your review for ${item.name}`);
+        }
+      } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, `reviews/${reviewId}`);
+      }
+    },
+    [user, userProfile, showToast]
+  );
+
+  const deleteMenuReview = useCallback(
+    async (reviewId: string) => {
+      if (!user || !user.emailVerified) return;
+      const cleanId = sanitizeId(reviewId);
+      try {
+        await deleteDoc(doc(db, 'reviews', cleanId));
+        showToast('Removed your review');
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `reviews/${cleanId}`);
+      }
+    },
+    [user, showToast]
   );
 
   const recordStatHit = useCallback((statId: PageStatId) => {
@@ -1002,6 +1126,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userProfile,
         authModalOpen,
         authModalTab,
+        authSkipRedirect,
         openAuthModal,
         closeAuthModal,
         menuItems,
@@ -1009,10 +1134,13 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         hasLegacyMenu,
         menuLoading,
         itemPopularityById,
+        reviewsByItemId,
         lovedItemIds,
         ratedItems,
         toggleLoveItem,
         rateMenuItem,
+        saveMenuReview,
+        deleteMenuReview,
         pageStats,
         pageStatsLoading,
         toastMessage,

@@ -385,6 +385,77 @@
         }
       },
       "required": ["itemId", "loveCount", "ratingSum", "ratingCount", "updatedAt"]
+    },
+    "MenuReview": {
+      "title": "MenuReview",
+      "description": "Customer star rating and tasting comment submitted by a verified member for a specific menu item.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Deterministic review ID ({itemId}__{userId}).",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "itemId": {
+          "type": "string",
+          "description": "Menu item identifier being reviewed.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "itemName": {
+          "type": "string",
+          "description": "Snapshot display name of the coffee item.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the reviewing member.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorName": {
+          "type": "string",
+          "description": "Public display name of the reviewer (no email or phone PII).",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "rating": {
+          "type": "integer",
+          "description": "Star rating from 1 to 5."
+        },
+        "comment": {
+          "type": "string",
+          "description": "Written tasting review comment.",
+          "minLength": 3,
+          "maxLength": 400
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last-updated timestamp."
+        }
+      },
+      "required": [
+        "id",
+        "itemId",
+        "itemName",
+        "userId",
+        "authorName",
+        "rating",
+        "comment",
+        "createdAt",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
@@ -411,6 +482,10 @@
     "/itemStats/{itemId}": {
       "schema": { "$ref": "#/entities/ItemStat" },
       "description": "Public customer love counters and star rating totals per menu item."
+    },
+    "/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/MenuReview" },
+      "description": "Publicly readable customer star ratings and comments per coffee item; writes restricted to verified owner."
     }
   }
 }

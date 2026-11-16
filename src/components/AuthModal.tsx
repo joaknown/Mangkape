@@ -13,6 +13,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onAuthSuccess }) => {
     user,
     authModalOpen,
     authModalTab,
+    authSkipRedirect,
     openAuthModal,
     closeAuthModal,
     authError,
@@ -45,7 +46,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onAuthSuccess }) => {
       const result = await signInWithGoogle(rememberMe);
       if (result.ok) {
         closeAuthModal();
-        onAuthSuccess?.(result.isAdmin);
+        if (!authSkipRedirect) onAuthSuccess?.(result.isAdmin);
       }
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : 'Unable to sign in.');
@@ -77,7 +78,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onAuthSuccess }) => {
       );
       if (result.ok) {
         closeAuthModal();
-        onAuthSuccess?.(result.isAdmin);
+        if (!authSkipRedirect) onAuthSuccess?.(result.isAdmin);
       }
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : 'Unable to complete registration.');
@@ -90,7 +91,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onAuthSuccess }) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#181615]/55 p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-[#181615]/55 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-modal-title"

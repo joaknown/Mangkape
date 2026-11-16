@@ -151,6 +151,26 @@ service cloud.firestore {
         data.updatedAt is timestamp;
     }
 
+    function isValidReview(data) {
+      return data.keys().hasAll([
+          'id', 'itemId', 'itemName', 'userId', 'authorName',
+          'rating', 'comment', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'itemId', 'itemName', 'userId', 'authorName',
+          'rating', 'comment', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        isValidId(data.itemId) &&
+        data.itemName is string && data.itemName.size() >= 1 && data.itemName.size() <= 80 &&
+        isValidId(data.userId) &&
+        data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 80 &&
+        data.rating is int && data.rating >= 1 && data.rating <= 5 &&
+        data.comment is string && data.comment.size() >= 3 && data.comment.size() <= 400 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
     // =========================================================================
     // Collection Rules
     // =========================================================================
@@ -304,6 +324,37 @@ service cloud.firestore {
           )
         );
       allow delete: if false;
+    }
+
+    // Customer coffee item star ratings & comments (public read; verified member create/edit/delete own review)
+    match /reviews/{reviewId} {
+      allow get: if isValidId(reviewId);
+      allow list: if true;
+      allow create: if isVerifiedUser() &&
+        isValidId(reviewId) &&
+        isValidReview(incoming()) &&
+        incoming().id == reviewId &&
+        incoming().userId == request.auth.uid &&
+        reviewId == (incoming().itemId + '__' + request.auth.uid) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() &&
+        isValidId(reviewId) &&
+        isValidReview(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().itemId == existing().itemId &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            existing().userId == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['authorName', 'itemName', 'rating', 'comment', 'updatedAt'])
+          )
+        );
+      allow delete: if isVerifiedUser() &&
+        isValidId(reviewId) &&
+        (existing().userId == request.auth.uid || isAdmin());
     }
   }
 }

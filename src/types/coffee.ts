@@ -50,7 +50,20 @@ export interface MenuItemPopularity {
   totalInteractions: number;
   ratingAvg: number;
   ratingCount: number;
+  reviewCount: number;
   isMostLoved: boolean;
+}
+
+export interface MenuReview {
+  id: string;
+  itemId: string;
+  itemName: string;
+  userId: string;
+  authorName: string;
+  rating: number;
+  comment: string;
+  createdAtMs: number;
+  updatedAtMs: number;
 }
 
 export interface UserProfile {
