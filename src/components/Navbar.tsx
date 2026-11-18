@@ -27,13 +27,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activeSection = 'top
   const handleAccountAction = () => {
     setMobileMenuOpen(false);
     if (!user) {
-      openAuthModal('login');
+      openAuthModal(false);
       return;
     }
     onNavigate(isAdmin ? 'cms' : 'orders');
   };
 
-  const accountActionLabel = !user ? 'Login' : isAdmin ? 'Store Manager' : 'My Account';
+  const accountActionLabel = !user ? 'Admin Login' : isAdmin ? 'Store Manager' : 'My Account';
 
   return (
     <header className="sticky top-0 z-40 bg-[#FAF9F6]/95 backdrop-blur-sm border-b border-[#E6E2D8]">

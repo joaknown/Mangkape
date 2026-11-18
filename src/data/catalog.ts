@@ -38,7 +38,10 @@ export const MENU_CATEGORIES: MenuCategory[] = [
   'Blended Drinks',
 ];
 
-export const MENU_CATEGORY_META: Record<MenuCategory, { subtitle: string }> = {
+export const MENU_CATEGORY_META: Record<
+  MenuCategory,
+  { subtitle: string; description?: string }
+> = {
   'Perfectly Classic': {
     subtitle: 'Timeless everyday espresso & milk pairings crafted to order',
   },
@@ -49,7 +52,9 @@ export const MENU_CATEGORY_META: Record<MenuCategory, { subtitle: string }> = {
     subtitle: 'Non-coffee and Japanese matcha favorites for any time of day',
   },
   'Specialty Options': {
-    subtitle: 'Curated Collection · Exclusive for 12 oz cup size',
+    subtitle: 'Explore beyond your usual cup · Exclusive for 12 oz cup size',
+    description:
+      'A curated selection of coffee experiences, bringing together different beans, origins, varieties, and blends for those who want to discover more about coffee. It gives you reason to explore coffee beyond your usual orders. Because coffee is more than just a drink—it has a story waiting to be discovered and shared, one cup at a time.',
   },
   'Homegrown Signature': {
     subtitle: 'Mang Kape’s original house creations & local muscovado blends',
@@ -634,7 +639,7 @@ export const TRACKED_PAGES: {
     id: 'orders',
     label: 'Member Account',
     route: '/account',
-    description: 'Customer profile, loved drinks & loyalty perks',
+    description: 'Customer profile, preferred cup notes & loved drinks',
   },
   {
     id: 'location',

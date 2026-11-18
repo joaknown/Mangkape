@@ -66,14 +66,14 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
               type="button"
               onClick={() => {
                 if (!user) {
-                  openAuthModal('login');
+                  openAuthModal(false);
                 } else {
                   onNavigate(isAdmin ? 'cms' : 'orders');
                 }
               }}
               className="hover:text-[#181615] transition-colors w-fit text-left cursor-pointer"
             >
-              {!user ? 'Login / Register' : isAdmin ? 'Store Manager' : 'My Account'}
+              {!user ? 'Admin Login' : isAdmin ? 'Store Manager' : 'My Account'}
             </button>
           </div>
         </div>

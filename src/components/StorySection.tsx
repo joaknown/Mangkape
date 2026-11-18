@@ -99,7 +99,7 @@ const ARCHIVE_PHOTOS: StoryPhoto[] = [
 const MILESTONES = [
   {
     era: '2019',
-    place: 'Home-Roasted Pouches & Drip Bags',
+    place: 'Pouches, Drip Bags & Selling Cold Brew',
     summary:
       'Started as a small online coffee business selling ground pouches, drip bags, and cold brew delivered personally.',
     photoIndex: 0,
@@ -286,7 +286,7 @@ export const StorySection: React.FC = () => {
           {/* Right Column: Full Narrative Story */}
           <div className="lg:col-span-7 space-y-5 text-[15px] leading-[1.72] text-[#4E4842]">
             <p>
-              Mang Kape began in <strong className="font-semibold text-[#181615]">2019</strong> as a small online business selling coffee grounds in pouches, drip bag coffee, and later, cold brew coffee. We personally delivered orders to customers and shipped them to different locations, driven by a simple goal: to share good coffee with people.
+              Mang Kape began in <strong className="font-semibold text-[#181615]">2019</strong> as a small online business selling coffee grounds in pouches, drip bag coffee, and cold brew coffee. We personally delivered orders to customers and shipped them to different locations, driven by a simple goal: to share good coffee with people.
             </p>
 
             <p>

@@ -291,19 +291,19 @@ const ItemReviewsModal: React.FC<ItemReviewsModalProps> = ({
             <div className="bg-white rounded-xl border border-[#E6E2D8] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold text-[#181615]">
-                  Sign in to rate &amp; review {item.name}
+                  Sign in to vote &amp; write a rating for {item.name}
                 </p>
                 <p className="text-xs text-[#6B645C] mt-1">
-                  Logged-in Mang Kape members can leave star ratings and tasting comments on any drink.
+                  Sign in with Google to leave star ratings and tasting comments on this drink.
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => openAuthModal('login', true)}
+                onClick={() => openAuthModal(true)}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[42px] text-xs font-semibold text-white bg-[#1B3B2B] hover:bg-[#142D20] rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0"
               >
                 <UserCheck className="w-4 h-4" />
-                <span>Login to Review</span>
+                <span>Sign In to Vote &amp; Rate</span>
               </button>
             </div>
           ) : showComposerForm ? (
@@ -461,7 +461,7 @@ const ItemReviewsModal: React.FC<ItemReviewsModalProps> = ({
                 No written customer comments yet for {item.name}.{' '}
                 {user
                   ? 'Use the form above to share the first review!'
-                  : 'Log in to share your tasting notes.'}
+                  : 'Sign in above to vote or share your tasting notes.'}
               </div>
             ) : (
               <div className="divide-y divide-[#EFECE4]">
@@ -576,6 +576,7 @@ export const MenuSection: React.FC = () => {
               category: 'Most Loved Customer Favorites',
               subtitle:
                 'Ranked by customer loves, 5-star ratings, and most frequently ordered pours at Mang Kape',
+              description: '',
               items: filteredItems,
             },
           ]
@@ -588,6 +589,7 @@ export const MenuSection: React.FC = () => {
       .map((category) => ({
         category,
         subtitle: MENU_CATEGORY_META[category]?.subtitle ?? '',
+        description: MENU_CATEGORY_META[category]?.description ?? '',
         items: filteredItems.filter((item) => item.category === category),
       }))
       .filter((group) => group.items.length > 0);
@@ -715,16 +717,21 @@ export const MenuSection: React.FC = () => {
           <div className="space-y-12">
             {groupedSections.map((group) => (
               <div key={group.category}>
-                <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pb-3 mb-6 border-b border-[#E6E2D8]">
-                  <div>
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-4 mb-6 border-b border-[#E6E2D8]">
+                  <div className="max-w-[70ch]">
                     <h3 className="font-display text-2xl font-semibold text-[#181615]">
                       {group.category}
                     </h3>
                     {group.subtitle && (
-                      <p className="text-xs text-[#6B645C] mt-0.5">{group.subtitle}</p>
+                      <p className="text-xs font-medium text-[#1B3B2B] mt-1">{group.subtitle}</p>
+                    )}
+                    {group.description && (
+                      <p className="text-sm text-[#4E4842] leading-relaxed mt-2">
+                        {group.description}
+                      </p>
                     )}
                   </div>
-                  <span className="text-xs font-mono-tabular text-[#6B645C]">
+                  <span className="text-xs font-mono-tabular text-[#6B645C] shrink-0">
                     {group.items.length} {group.items.length === 1 ? 'item' : 'items'}
                   </span>
                 </div>

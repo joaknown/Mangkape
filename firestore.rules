@@ -203,8 +203,8 @@ service cloud.firestore {
         isOwner(userId) &&
         isValidUserProfile(incoming()) &&
         incoming().uid == request.auth.uid &&
-        incoming().loyaltyPoints == 50 &&
-        incoming().lifetimePoints == 50 &&
+        incoming().loyaltyPoints == 0 &&
+        incoming().lifetimePoints == 0 &&
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time;
       allow update: if isVerifiedUser() &&
@@ -222,13 +222,6 @@ service cloud.firestore {
             ]) &&
             incoming().loyaltyPoints == existing().loyaltyPoints &&
             incoming().lifetimePoints == existing().lifetimePoints
-          ) ||
-          (
-            isOwner(userId) &&
-            incoming().diff(existing()).affectedKeys().hasOnly(['loyaltyPoints', 'lifetimePoints', 'updatedAt']) &&
-            incoming().loyaltyPoints <= existing().loyaltyPoints + 1000 &&
-            incoming().lifetimePoints >= existing().lifetimePoints &&
-            incoming().lifetimePoints <= existing().lifetimePoints + 1000
           )
         );
       allow delete: if false;

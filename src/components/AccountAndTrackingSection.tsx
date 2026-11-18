@@ -1,12 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Award,
   Heart,
   LogOut,
   Pencil,
   Star,
   UserCheck,
-  UserPlus,
 } from 'lucide-react';
 import { formatCents, getSectionPath, SHOP_DETAILS } from '../data/catalog';
 import { useShop } from '../context/ShopContext';
@@ -93,27 +91,13 @@ export const AccountAndTrackingSection: React.FC<AccountAndTrackingSectionProps>
     return menuItems.filter((item) => idSet.has(item.id));
   }, [menuItems, lovedItemIds]);
 
-  const points = userProfile?.loyaltyPoints ?? 0;
-  const lifetimePoints = userProfile?.lifetimePoints ?? 0;
-  const rewardProgressPct = Math.min(
-    100,
-    Math.round((points / SHOP_DETAILS.rewardThresholdPts) * 100)
-  );
-  const availablePerksCount = Math.floor(points / SHOP_DETAILS.rewardThresholdPts);
-  const memberTier =
-    lifetimePoints >= 1000
-      ? 'Reserve Roaster'
-      : lifetimePoints >= 400
-      ? 'Gold Bean'
-      : "Roaster's Circle";
-
   return (
     <section id="orders" className="py-14 lg:py-20 border-b border-[#E6E2D8] bg-[#F3F1EC]/60">
       <div id="rewards" className="max-w-[1200px] mx-auto px-4 sm:px-6">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
             <p className="text-xs font-medium text-[#4E4842] mb-2">
-              Member Profile, Favorite Drinks &amp; Café Rewards
+              Member Profile &amp; Favorite Drinks
             </p>
             <h2
               className="font-display text-3xl sm:text-4xl font-semibold text-[#181615] tracking-tight"
@@ -121,7 +105,7 @@ export const AccountAndTrackingSection: React.FC<AccountAndTrackingSectionProps>
             >
               {user
                 ? `Welcome back, ${userProfile?.displayName || user.displayName || 'Friend'}`
-                : 'Your personal café member pass'}
+                : 'Your personal café member account'}
             </h2>
           </div>
 
@@ -169,43 +153,48 @@ export const AccountAndTrackingSection: React.FC<AccountAndTrackingSectionProps>
           <div className="bg-white rounded-xl border border-[#E6E2D8] p-8 sm:p-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             <div className="lg:col-span-8">
               <h3 className="font-display text-2xl font-semibold text-[#181615] mb-3">
-                Member Login &amp; New Customer Registration
+                Administrator Login &amp; Menu Voting
               </h3>
               <p className="text-[15px] leading-relaxed text-[#4E4842] mb-6 max-w-[60ch]">
-                Log in to access your private account, update your profile and preferred cup style, view your loyalty rewards, and save the Mang Kape drinks you love most. Returning customers stay signed in automatically.
+                New member registration is disabled. Direct login is restricted to Mang Kape administrators. Visitors can sign in directly on any menu drink to vote or write a star rating and review.
               </p>
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => openAuthModal('login')}
-                  className="inline-flex items-center gap-2 px-6 py-3 min-h-[44px] text-sm font-semibold text-white bg-[#1B3B2B] hover:bg-[#142D20] rounded-lg transition-colors cursor-pointer"
+                  onClick={() => openAuthModal(false)}
+                  className="inline-flex items-center gap-2 px-6 py-3 min-h-[44px] text-sm font-semibold text-white bg-[#1B3B2B] hover:bg-[#142D20] rounded-lg transition-colors cursor-pointer whitespace-nowrap"
                 >
                   <UserCheck className="w-4 h-4" />
-                  <span>Login</span>
+                  <span>Admin Login</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => openAuthModal('register')}
-                  className="inline-flex items-center gap-2 px-5 py-3 min-h-[44px] text-sm font-medium text-[#181615] bg-[#F3F1EC] hover:bg-[#E8E4DA] border border-[#DFD9CC] rounded-lg transition-colors cursor-pointer"
+                <a
+                  href={getSectionPath('menu')}
+                  onClick={(e) => {
+                    if (onNavigate) {
+                      e.preventDefault();
+                      onNavigate('menu');
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 px-5 py-3 min-h-[44px] text-sm font-medium text-[#181615] bg-[#F3F1EC] hover:bg-[#E8E4DA] border border-[#DFD9CC] rounded-lg transition-colors whitespace-nowrap"
                 >
-                  <UserPlus className="w-4 h-4 text-[#1B3B2B]" />
-                  <span>Register New Member</span>
-                </button>
+                  <Star className="w-4 h-4 text-[#C88A1E]" />
+                  <span>Vote &amp; Rate on Menu</span>
+                </a>
               </div>
             </div>
 
             <div className="lg:col-span-4 border-t lg:border-t-0 lg:border-l border-[#E6E2D8] pt-6 lg:pt-0 lg:pl-8 space-y-4">
               <div>
-                <p className="text-sm font-semibold text-[#181615]">Automatic Returning Login</p>
-                <p className="text-xs text-[#6B645C]">Existing customers stay signed in on revisit</p>
+                <p className="text-sm font-semibold text-[#181615]">Admin-Only Direct Login</p>
+                <p className="text-xs text-[#6B645C]">Store managers access menu updates &amp; analytics</p>
               </div>
               <div>
-                <p className="text-sm font-semibold text-[#181615]">Private Member Profile</p>
-                <p className="text-xs text-[#6B645C]">View and update your own details &amp; drink setup</p>
+                <p className="text-sm font-semibold text-[#181615]">Menu Voting Sign-In</p>
+                <p className="text-xs text-[#6B645C]">Visitors sign in from any menu card to love or rate drinks</p>
               </div>
               <div>
-                <p className="text-sm font-semibold text-[#181615]">50 Welcome Points</p>
-                <p className="text-xs text-[#6B645C]">150 pts unlocks ₱150.00 complimentary cup credit in-store</p>
+                <p className="text-sm font-semibold text-[#181615]">Tasting Reviews</p>
+                <p className="text-xs text-[#6B645C]">Share star ratings and comments directly on the menu</p>
               </div>
             </div>
           </div>
@@ -411,86 +400,6 @@ export const AccountAndTrackingSection: React.FC<AccountAndTrackingSectionProps>
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* Loyalty Dashboard Section */}
-            <div
-              aria-labelledby="loyalty-dashboard-heading"
-              className="bg-white rounded-xl border border-[#E6E2D8] p-6 sm:p-8 space-y-6"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#EFECE4]">
-                <div>
-                  <div className="flex items-center gap-2 text-xs text-[#4E4842] mb-1">
-                    <Award className="w-4 h-4 text-[#1B3B2B]" />
-                    <span>{memberTier}</span>
-                    <span aria-hidden="true">·</span>
-                    <span>{userProfile?.email || user.email}</span>
-                  </div>
-                  <h3
-                    id="loyalty-dashboard-heading"
-                    className="font-display text-2xl font-semibold text-[#181615]"
-                  >
-                    Loyalty Rewards
-                  </h3>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-                <div className="lg:col-span-5 grid grid-cols-2 gap-6">
-                  <div>
-                    <p className="text-xs text-[#6B645C] mb-1">Current Balance</p>
-                    <div className="flex items-baseline gap-2">
-                      <span className="font-display text-4xl font-semibold font-mono-tabular text-[#181615]">
-                        {points}
-                      </span>
-                      <span className="text-xs text-[#4E4842]">pts</span>
-                    </div>
-                    <p className="mt-1 text-xs font-mono-tabular text-[#1B3B2B]">
-                      {availablePerksCount}{' '}
-                      {availablePerksCount === 1 ? 'free drink credit' : 'free drink credits'}
-                    </p>
-                  </div>
-
-                  <div className="border-l border-[#EFECE4] pl-6">
-                    <p className="text-xs text-[#6B645C] mb-1">Lifetime Earned</p>
-                    <div className="flex items-baseline gap-2">
-                      <span className="font-display text-3xl font-semibold font-mono-tabular text-[#181615]">
-                        {lifetimePoints}
-                      </span>
-                      <span className="text-xs text-[#4E4842]">pts</span>
-                    </div>
-                    <p className="mt-1 text-xs text-[#6B645C]">Redeemable at the counter</p>
-                  </div>
-                </div>
-
-                <div className="lg:col-span-7 lg:border-l lg:border-[#EFECE4] lg:pl-8">
-                  <div className="flex items-center justify-between text-xs font-medium text-[#181615] mb-2">
-                    <span>
-                      Progress Toward Next Reward ({formatCents(SHOP_DETAILS.rewardValueCents)} Drink Credit)
-                    </span>
-                    <span className="font-mono-tabular">
-                      {Math.min(points, SHOP_DETAILS.rewardThresholdPts)} /{' '}
-                      {SHOP_DETAILS.rewardThresholdPts} pts ({rewardProgressPct}%)
-                    </span>
-                  </div>
-                  <div
-                    role="progressbar"
-                    aria-label="Progress toward next loyalty reward"
-                    aria-valuenow={Math.min(points, SHOP_DETAILS.rewardThresholdPts)}
-                    aria-valuemin={0}
-                    aria-valuemax={SHOP_DETAILS.rewardThresholdPts}
-                    className="h-3 w-full rounded-full bg-[#EFECE4] overflow-hidden"
-                  >
-                    <div
-                      className="h-full bg-[#1B3B2B] transition-all duration-300"
-                      style={{ width: `${rewardProgressPct}%` }}
-                    />
-                  </div>
-                  <p className="mt-2.5 text-xs text-[#4E4842]">
-                    Present your member email at Mang Kape Shop to apply earned café points toward any handcrafted drink.
-                  </p>
-                </div>
-              </div>
             </div>
 
             {/* Loved Drinks Favorites List */}

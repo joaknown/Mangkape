@@ -57,15 +57,6 @@ const UNIQUE_PAGES_KEY = 'mang_kape_unique_pages_v1';
 const LOVED_ITEMS_KEY = 'mang_kape_loved_items_v1';
 const RATED_ITEMS_KEY = 'mang_kape_rated_items_v1';
 
-export interface MemberRegistrationInput {
-  displayName: string;
-  phone: string;
-  address: string;
-  preferredTemp: TempOption;
-  preferredSize: DrinkSize;
-  preferredMilk: MilkOption;
-}
-
 export interface UserProfileUpdateInput {
   displayName: string;
   phone: string;
@@ -86,9 +77,9 @@ interface ShopContextValue {
   isAdmin: boolean;
   userProfile: UserProfile | null;
   authModalOpen: boolean;
-  authModalTab: 'login' | 'register';
+  authForMenuReview: boolean;
   authSkipRedirect: boolean;
-  openAuthModal: (tab?: 'login' | 'register', skipRedirect?: boolean) => void;
+  openAuthModal: (forMenuReview?: boolean) => void;
   closeAuthModal: () => void;
   menuItems: MenuItem[];
   isMenuSeeded: boolean;
@@ -107,11 +98,7 @@ interface ShopContextValue {
   toastMessage: string | null;
   showToast: (msg: string) => void;
   authError: string | null;
-  signInWithGoogle: (rememberMe?: boolean) => Promise<AuthResult>;
-  registerMemberWithGoogle: (
-    details: MemberRegistrationInput,
-    rememberMe?: boolean
-  ) => Promise<AuthResult>;
+  signInWithGoogle: (rememberMe?: boolean, allowCustomerForMenu?: boolean) => Promise<AuthResult>;
   updateUserProfile: (updates: UserProfileUpdateInput) => Promise<void>;
   signOutUser: () => Promise<void>;
   seedDefaultMenu: () => Promise<void>;
@@ -179,20 +166,17 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('login');
+  const [authForMenuReview, setAuthForMenuReview] = useState(false);
   const [authSkipRedirect, setAuthSkipRedirect] = useState(false);
   const recordedSessionRef = useRef<Set<PageStatId>>(new Set());
-  const registrationInProgressRef = useRef(false);
+  const adminLoginCheckingRef = useRef(false);
 
-  const openAuthModal = useCallback(
-    (tab: 'login' | 'register' = 'login', skipRedirect = false) => {
-      setAuthError(null);
-      setAuthModalTab(tab);
-      setAuthSkipRedirect(skipRedirect);
-      setAuthModalOpen(true);
-    },
-    []
-  );
+  const openAuthModal = useCallback((forMenuReview = false) => {
+    setAuthError(null);
+    setAuthForMenuReview(forMenuReview);
+    setAuthSkipRedirect(forMenuReview);
+    setAuthModalOpen(true);
+  }, []);
 
   const closeAuthModal = useCallback(() => {
     setAuthModalOpen(false);
@@ -447,10 +431,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
     const ensureProfile = async () => {
-      if (registrationInProgressRef.current) return;
+      if (adminLoginCheckingRef.current) return;
       try {
         const snap = await getDoc(userDocRef);
-        if (!snap.exists() && user.emailVerified && !registrationInProgressRef.current) {
+        if (!snap.exists() && user.emailVerified && !adminLoginCheckingRef.current) {
           const displayName = (user.displayName || user.email?.split('@')[0] || 'Coffee Lover').slice(0, 80);
           const email = (user.email || 'guest@mangkape.com').slice(0, 120);
           await setDoc(userDocRef, {
@@ -462,8 +446,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
             preferredTemp: 'Iced',
             preferredSize: '16 oz',
             preferredMilk: 'Whole Milk',
-            loyaltyPoints: 50,
-            lifetimePoints: 50,
+            loyaltyPoints: 0,
+            lifetimePoints: 0,
             favoriteOrderId: '',
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
@@ -561,6 +545,12 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const toggleLoveItem = useCallback(
     async (item: MenuItem) => {
+      if (!user || !user.emailVerified) {
+        showToast('Please sign in to vote on the menu');
+        openAuthModal(true);
+        return;
+      }
+
       const cleanId = sanitizeId(item.id);
       const currentlyLoved = lovedItemIds.includes(cleanId);
       const currentStat = itemStats[cleanId];
@@ -606,7 +596,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handleFirestoreError(error, OperationType.WRITE, `itemStats/${cleanId}`);
       }
     },
-    [lovedItemIds, itemStats, showToast]
+    [user, lovedItemIds, itemStats, showToast, openAuthModal]
   );
 
   const rateMenuItem = useCallback(
@@ -811,8 +801,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [isAdmin, showToast]);
 
   const signInWithGoogle = useCallback(
-    async (rememberMe = true): Promise<AuthResult> => {
+    async (rememberMe = true, allowCustomerForMenu = false): Promise<AuthResult> => {
       setAuthError(null);
+      adminLoginCheckingRef.current = !allowCustomerForMenu;
       try {
         await setPersistence(
           auth,
@@ -830,98 +821,62 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
             signedInAsAdmin = false;
           }
         }
+
+        if (!allowCustomerForMenu && !signedInAsAdmin) {
+          await signOut(auth);
+          setUser(null);
+          setHasAdminDoc(false);
+          setUserProfile(null);
+          setAuthError(
+            'Only Mang Kape administrators can log in directly. Visitors can sign in directly on any menu item when voting or writing a rating.'
+          );
+          return { ok: false, isAdmin: false };
+        }
+
+        if (signedInAsAdmin && loggedUser.emailVerified) {
+          const userDocRef = doc(db, 'users', loggedUser.uid);
+          try {
+            const existingSnap = await getDoc(userDocRef);
+            if (!existingSnap.exists()) {
+              const displayName = (
+                loggedUser.displayName ||
+                loggedUser.email?.split('@')[0] ||
+                'Administrator'
+              ).slice(0, 80);
+              const email = (loggedUser.email || 'admin@mangkape.com').slice(0, 120);
+              await setDoc(userDocRef, {
+                uid: loggedUser.uid,
+                displayName,
+                email,
+                phone: '',
+                address: '',
+                preferredTemp: 'Iced',
+                preferredSize: '16 oz',
+                preferredMilk: 'Whole Milk',
+                loyaltyPoints: 0,
+                lifetimePoints: 0,
+                favoriteOrderId: '',
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+              });
+            }
+          } catch {
+            // Listener will surface errors if needed
+          }
+        }
+
         showToast(
           signedInAsAdmin
             ? 'Signed in as Mang Kape Administrator'
-            : `Welcome back, ${loggedUser.displayName || 'Member'}`
+            : `Signed in as ${loggedUser.displayName || 'Guest'} to vote & rate`
         );
         return { ok: true, isAdmin: signedInAsAdmin };
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Unable to complete sign-in.';
         setAuthError(msg);
         return { ok: false, isAdmin: false };
-      }
-    },
-    [showToast]
-  );
-
-  const registerMemberWithGoogle = useCallback(
-    async (details: MemberRegistrationInput, rememberMe = true): Promise<AuthResult> => {
-      setAuthError(null);
-      registrationInProgressRef.current = true;
-      try {
-        await setPersistence(
-          auth,
-          rememberMe ? browserLocalPersistence : browserSessionPersistence
-        );
-        const cred = await signInWithPopup(auth, googleProvider);
-        const loggedUser = cred.user;
-        if (!loggedUser.emailVerified) {
-          throw new Error('A verified Google account is required to register.');
-        }
-
-        const cleanName = (
-          details.displayName.trim() ||
-          loggedUser.displayName ||
-          loggedUser.email?.split('@')[0] ||
-          'Coffee Lover'
-        ).slice(0, 80);
-        const cleanEmail = (loggedUser.email || 'guest@mangkape.com').slice(0, 120);
-        const cleanPhone = details.phone.trim().slice(0, 30);
-        const cleanAddress = details.address.trim().slice(0, 160);
-
-        const userDocRef = doc(db, 'users', loggedUser.uid);
-        try {
-          const existingSnap = await getDoc(userDocRef);
-          if (!existingSnap.exists()) {
-            await setDoc(userDocRef, {
-              uid: loggedUser.uid,
-              displayName: cleanName,
-              email: cleanEmail,
-              phone: cleanPhone,
-              address: cleanAddress,
-              preferredTemp: details.preferredTemp,
-              preferredSize: details.preferredSize,
-              preferredMilk: details.preferredMilk,
-              loyaltyPoints: 50,
-              lifetimePoints: 50,
-              favoriteOrderId: '',
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-            });
-            showToast(`Welcome to Mang Kape, ${cleanName}! +50 welcome points added`);
-          } else {
-            await updateDoc(userDocRef, {
-              displayName: cleanName,
-              phone: cleanPhone,
-              address: cleanAddress,
-              preferredTemp: details.preferredTemp,
-              preferredSize: details.preferredSize,
-              preferredMilk: details.preferredMilk,
-              updatedAt: serverTimestamp(),
-            });
-            showToast(`Existing account recognized · Updated profile for ${cleanName}`);
-          }
-        } catch (error) {
-          handleFirestoreError(error, OperationType.WRITE, `users/${loggedUser.uid}`);
-        }
-
-        let signedInAsAdmin = loggedUser.email === BOOTSTRAP_ADMIN_EMAIL;
-        if (!signedInAsAdmin) {
-          try {
-            const adminSnap = await getDoc(doc(db, 'admins', loggedUser.uid));
-            signedInAsAdmin = adminSnap.exists();
-          } catch {
-            signedInAsAdmin = false;
-          }
-        }
-        return { ok: true, isAdmin: signedInAsAdmin };
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Unable to register member.';
-        setAuthError(msg);
-        return { ok: false, isAdmin: false };
       } finally {
-        registrationInProgressRef.current = false;
+        adminLoginCheckingRef.current = false;
       }
     },
     [showToast]
@@ -1161,7 +1116,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAdmin,
         userProfile,
         authModalOpen,
-        authModalTab,
+        authForMenuReview,
         authSkipRedirect,
         openAuthModal,
         closeAuthModal,
@@ -1183,7 +1138,6 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         showToast,
         authError,
         signInWithGoogle,
-        registerMemberWithGoogle,
         updateUserProfile,
         signOutUser,
         seedDefaultMenu,

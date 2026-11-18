@@ -66,10 +66,6 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                     <p className="text-xs text-[#4E4842]">Welcome back</p>
                     <p className="text-sm font-semibold text-[#181615]">
                       {userProfile?.displayName || user.displayName || user.email}
-                      <span className="mx-2 text-[#B8B0A2]">·</span>
-                      <span className="font-mono-tabular text-[#1B3B2B]">
-                        {userProfile?.loyaltyPoints ?? 0} pts
-                      </span>
                     </p>
                   </div>
                   <button
@@ -77,20 +73,20 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                     onClick={onOpenAccount}
                     className="text-sm font-medium text-[#1B3B2B] underline underline-offset-4 hover:text-[#142D20] cursor-pointer whitespace-nowrap shrink-0"
                   >
-                    My Account &amp; Rewards
+                    My Account
                   </button>
                 </div>
               ) : (
                 <div className="flex flex-wrap items-center justify-between gap-4 w-full">
                   <p className="text-sm text-[#4E4842]">
-                    Earn 1 pt per ₱5 spent and unlock a complimentary ₱150.00 drink credit at 150 pts.
+                    Tap any drink on the menu to vote or sign in to write a star rating and review.
                   </p>
                   <button
                     type="button"
-                    onClick={() => openAuthModal('login')}
+                    onClick={() => openAuthModal(false)}
                     className="text-sm font-semibold text-[#1B3B2B] underline underline-offset-4 hover:text-[#142D20] cursor-pointer whitespace-nowrap shrink-0"
                   >
-                    Login / Register
+                    Admin Login
                   </button>
                 </div>
               )}
@@ -129,9 +125,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             </p>
           </div>
           <div>
-            <p className="text-xs text-[#4E4842] mb-1">Member Rewards</p>
-            <p className="text-sm font-medium text-[#181615] font-mono-tabular">
-              {SHOP_DETAILS.loyaltyRateText}
+            <p className="text-xs text-[#4E4842] mb-1">Menu Voting &amp; Reviews</p>
+            <p className="text-sm font-medium text-[#181615]">
+              Sign in on any drink to rate &amp; review
             </p>
           </div>
         </div>
